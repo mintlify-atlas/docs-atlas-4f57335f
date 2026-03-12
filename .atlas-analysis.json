@@ -1,0 +1,102 @@
+{
+  "projectType": "saas",
+  "projectName": "Barro Tal Vez",
+  "projectDescription": "Pottery workshop management system for tracking student pieces, payments, schedules, and studio operations",
+  "theme": "almond",
+  "primaryColor": "#84572F",
+  "lightColor": "#92ADA4",
+  "darkColor": "#110B06",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/student-management",
+              "features/piece-tracking",
+              "features/payments-billing",
+              "features/scheduling",
+              "features/notifications"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/admin-guide",
+              "guides/student-guide"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker-setup",
+              "deployment/environment-config",
+              "deployment/database-setup"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/alumnas",
+              "api/piezas",
+              "api/pagos",
+              "api/costos",
+              "api/turnos",
+              "api/notificaciones"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Role-based access control (admin and student roles)",
+    "Student profile management with photos and contact info",
+    "Pottery piece lifecycle tracking with photo history",
+    "Payment and billing management system",
+    "Class scheduling and turno (shift) assignment",
+    "Real-time notification system",
+    "File upload and image management"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/register",
+    "POST /api/auth/login",
+    "GET /api/auth/users",
+    "GET /api/alumnas",
+    "PUT /api/alumnas/:id",
+    "POST /api/piezas",
+    "GET /api/piezas",
+    "PUT /api/piezas/:id",
+    "DELETE /api/piezas/:id",
+    "POST /api/piezas/:id/historial-fotos",
+    "GET /api/pagos",
+    "POST /api/pagos",
+    "GET /api/costos",
+    "POST /api/costos",
+    "GET /api/turnos",
+    "POST /api/turnos",
+    "GET /api/notificaciones",
+    "PUT /api/notificaciones/:id/marcar-leida"
+  ]
+}
