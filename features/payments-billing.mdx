@@ -1,0 +1,364 @@
+---
+title: 'Payments & Billing'
+description: 'Track student payments, costs, and account balances in Barro Tal Vez'
+---
+
+## Overview
+
+The financial system tracks two types of transactions: **payments** (money received from students) and **costs** (charges for classes, materials, and services). Each student has a running balance calculated as costs minus payments.
+
+## Financial Models
+
+### Payments (Pagos)
+
+The `pagos` model records money received from students:
+
+```prisma
+model pagos {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now())
+  monto      Decimal  @db.Decimal
+  concepto   String?
+  alumna_id  String   @db.Uuid
+  alumnas    Alumna   @relation(..., onDelete: Cascade)
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `monto` | Decimal | Payment amount (currency: ARS) |
+| `concepto` | String | Optional description (e.g., "Cuota Marzo") |
+| `alumna_id` | UUID | Student who made the payment |
+| `created_at` | DateTime | When payment was recorded |
+
+### Costs (Costos)
+
+The `costos` model records charges assigned to students:
+
+```prisma
+model costos {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now())
+  alumna_id  String   @db.Uuid
+  pieza_id   BigInt?
+  monto      Decimal  @default(0) @db.Decimal
+  concepto   String?
+  alumnas    Alumna   @relation(..., onDelete: Cascade)
+  piezas     Pieza?   @relation(...)
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `monto` | Decimal | Cost amount (currency: ARS) |
+| `concepto` | String | Description of charge (e.g., "Clases", "Arcilla") |
+| `alumna_id` | UUID | Student being charged |
+| `pieza_id` | BigInt | Optional: specific piece this cost relates to |
+| `created_at` | DateTime | When cost was recorded |
+
+<Info>
+  Costs can be linked to specific pieces (e.g., firing fees, specialized materials) or left general (monthly class fees, clay purchases).
+</Info>
+
+## Admin Workflows
+
+### Recording a Payment
+
+Admins register payments through the **Finanzas** section:
+
+<Steps>
+  <Step title="Select student">
+    Choose the student from the dropdown menu
+  </Step>
+  
+  <Step title="Enter payment details">
+    - **Concepto**: Description (e.g., "Cuota Marzo", "Transferencia Bancaria")
+    - **Monto**: Amount in pesos (numeric value)
+  </Step>
+  
+  <Step title="Submit payment">
+    Click "Registrar" to record the payment
+  </Step>
+</Steps>
+
+The payment is immediately added to the student's account and their balance updates.
+
+### Recording a Cost
+
+Admins charge students for classes, materials, and services:
+
+<Steps>
+  <Step title="Select student">
+    Choose the student from the dropdown in the "Registrar Costo" form
+  </Step>
+  
+  <Step title="Link to piece (optional)">
+    If the cost relates to a specific piece:
+    - A second dropdown appears showing the student's active pieces
+    - Select the piece (e.g., "Taza de Gato (esmaltado)")
+    - Leave blank for general charges
+  </Step>
+  
+  <Step title="Enter cost details">
+    - **Concepto**: Description (e.g., "Cuota mensual", "Arcilla 5kg", "Horneado")
+    - **Monto**: Amount in pesos
+  </Step>
+  
+  <Step title="Submit cost">
+    Click "Registrar" to add the charge to the student's account
+  </Step>
+</Steps>
+
+<Note>
+  The piece dropdown only shows pieces with status **not** `entregada` or `rota` - active works in progress.
+</Note>
+
+### Financial Management Interface
+
+The admin finance panel (`VistaFinanzasAdmin`) displays two side-by-side forms:
+
+<CardGroup cols={2}>
+  <Card title="Registrar Pago" icon="money-bill" color="#92ADA4">
+    Left panel with green accent - records incoming payments
+  </Card>
+  
+  <Card title="Registrar Costo" icon="receipt" color="#84572F">
+    Right panel with red accent - records charges/costs
+  </Card>
+</CardGroup>
+
+Both forms provide immediate feedback:
+- ✅ Success messages in green
+- ❌ Error messages in red
+
+## Student Workflows
+
+### Viewing Account Summary
+
+Students access their financial overview in **"Mis Cuentas"** view:
+
+The main card displays:
+
+<Card title="Financial Hero Card" icon="chart-line">
+  - **Saldo a Pagar**: Large central number showing balance (costs - payments)
+  - **Pagos Totales**: Sum of all payments made
+  - **Costos Totales**: Sum of all charges
+</Card>
+
+#### Visual Indicators
+
+- **Balance > 0**: Red text (amount owed)
+- **Balance ≤ 0**: Green text (account current/credit)
+
+The balance is formatted as Argentine pesos with the `formatearMoneda` function:
+
+```javascript
+function formatearMoneda(val) {
+  return new Intl.NumberFormat('es-AR', { 
+    style: 'currency', 
+    currency: 'ARS' 
+  }).format(val)
+}
+// Output example: "$12.500,00"
+```
+
+### Viewing Transaction History
+
+Students can drill into details via two interactive buttons:
+
+#### Historial de Cargos
+
+Opens a modal showing all costs:
+
+- **Each item displays**:
+  - Concepto (description)
+  - Amount in red/brown (`#84572F`)
+  - Date of charge
+- **Sorted by**: Most recent first
+- **Examples**: "Cuota Abril", "Arcilla 3kg", "Horneado pieza grande"
+
+#### Historial de Pagos
+
+Opens a modal showing all payments:
+
+- **Each item displays**:
+  - Concepto (description)
+  - Amount in green (`#92ADA4`)
+  - Date of payment
+- **Sorted by**: Most recent first
+- **Examples**: "Transferencia", "Efectivo", "Pago cuota mensual"
+
+<Info>
+  Transaction history modals use a bottom sheet design with smooth animations and a scrollable list for long histories.
+</Info>
+
+## Balance Calculation
+
+Student balance is computed in real-time using React useMemo:
+
+```javascript
+const [totalCostos, totalPagos, saldoPendiente] = useMemo(() => {
+  const c = costos.reduce((acc, i) => acc + (Number(i.monto) || 0), 0)
+  const p = pagos.reduce((acc, i) => acc + (Number(i.monto) || 0), 0)
+  return [c, p, c - p]
+}, [costos, pagos])
+```
+
+**Formula**: `Saldo Pendiente = Total Costos - Total Pagos`
+
+- **Positive balance**: Student owes money
+- **Zero balance**: Account is settled
+- **Negative balance**: Student has credit (overpayment)
+
+## Payment Status Indicator
+
+The `cuota_al_dia` field on student profiles provides a quick status flag:
+
+- **Manually toggled** by admins in student management
+- **Visual badges**:
+  - ✅ Green: "Cuota Al Día" (payments current)
+  - ⚠️ Red: "Cuota Pendiente" (overdue)
+
+<Warning>
+  The `cuota_al_dia` field is a **manual indicator** and does not auto-update based on balance. Admins should toggle it when verifying payments.
+</Warning>
+
+## Data Access Control
+
+Financial data is protected by role-based access:
+
+### Admin Access
+
+- **GET `/pagos`**: Returns all payments from all students
+- **GET `/costos`**: Returns all costs from all students
+- Can create payments/costs for any student
+
+### Student Access
+
+- **GET `/pagos`**: Returns only their own payments (filtered by `req.user.id`)
+- **GET `/costos`**: Returns only their own costs (filtered by `req.user.id`)
+- Cannot create or modify financial records
+
+The service layer enforces filtering:
+
+```javascript
+export const getPagos = async (req, res, next) => {
+  const serializedPagos = await getPagosService(
+    req.user.rol,  // 'admin' or 'alumna'
+    req.user.id    // Filter by user if 'alumna'
+  )
+  res.json(serializedPagos)
+}
+```
+
+## API Endpoints
+
+### Payments
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/pagos` | Admin | Record a new payment |
+| GET | `/pagos` | Admin/Student | Get all payments (filtered by role) |
+
+**Request body** (POST):
+```json
+{
+  "alumna_id": "uuid-string",
+  "monto": 15000,
+  "concepto": "Cuota Abril 2024"
+}
+```
+
+### Costs
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/costos` | Admin | Record a new cost |
+| GET | `/costos` | Admin/Student | Get all costs (filtered by role) |
+
+**Request body** (POST):
+```json
+{
+  "alumna_id": "uuid-string",
+  "monto": 8000,
+  "concepto": "Clases semanales",
+  "pieza_id": 123  // optional
+}
+```
+
+## BigInt Serialization
+
+Cost and payment IDs use BigInt (autoincrement). The controller includes serialization:
+
+```javascript
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+```
+
+This ensures IDs are sent as strings in JSON responses to avoid JavaScript precision issues.
+
+## Visual Design
+
+The financial interface uses color psychology:
+
+<CardGroup cols={2}>
+  <Card title="Payments" icon="circle-check" color="#92ADA4">
+    Green/sage accent represents positive incoming funds
+  </Card>
+  
+  <Card title="Costs" icon="circle-exclamation" color="#84572F">
+    Brown/terracotta accent represents outgoing charges
+  </Card>
+</CardGroup>
+
+The student "Mis Cuentas" view uses:
+- **Hero card**: Soft beige background (`#EAE2D6`)
+- **Typography**: Fredoka One for large numbers, Roboto for details
+- **Rounded corners**: 32px border radius for modern feel
+
+## Technical Implementation
+
+Key files for payments and billing:
+
+- **Schema**: `~/workspace/source/backend/prisma/schema.prisma` (lines 84-102)
+- **Payment Controller**: `~/workspace/source/backend/src/controllers/pago.controller.js`
+- **Cost Controller**: `~/workspace/source/backend/src/controllers/costo.controller.js`
+- **Student UI**: `~/workspace/source/frontend/src/componentes/vistasAlumna/VistaMisCuentas.jsx`
+- **Admin UI**: `~/workspace/source/frontend/src/componentes/vistasAdmin/VistaFinanzasAdmin.jsx`
+
+## Cascade Deletion
+
+When a student is deleted:
+
+```prisma
+alumnas Alumna @relation(..., onDelete: Cascade)
+```
+
+- All their payments are removed
+- All their costs are removed
+- Account history is permanently deleted
+
+<Warning>
+  There is no financial data recovery after student deletion. Export reports before removing student accounts if historical data is needed.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Clear Descriptions" icon="pen">
+    Use descriptive `concepto` values: "Cuota Abril 2024" instead of "Pago"
+  </Card>
+  
+  <Card title="Link Piece Costs" icon="link">
+    Associate firing fees and special materials with specific pieces for transparency
+  </Card>
+  
+  <Card title="Regular Updates" icon="calendar-check">
+    Update `cuota_al_dia` status weekly based on balance reviews
+  </Card>
+  
+  <Card title="Consistent Timing" icon="clock">
+    Record payments and costs promptly to keep student balances current
+  </Card>
+</CardGroup>

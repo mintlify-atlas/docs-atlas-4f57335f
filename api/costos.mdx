@@ -1,0 +1,246 @@
+---
+title: 'Costos (Costs)'
+description: 'Track costs associated with students and ceramic pieces'
+---
+
+## POST /api/costos
+
+Create a new cost record for a student, optionally associated with a specific piece.
+
+### Authentication
+
+Requires authentication token (typically admin).
+
+### Request
+
+<ParamField body="alumna_id" type="string" required>
+  Student ID (UUID) to whom the cost is assigned
+</ParamField>
+
+<ParamField body="monto" type="number" required>
+  Cost amount (decimal)
+</ParamField>
+
+<ParamField body="concepto" type="string">
+  Description or concept of the cost
+</ParamField>
+
+<ParamField body="pieza_id" type="string">
+  Optional piece ID to associate the cost with a specific piece
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique cost identifier (auto-incremented BigInt as string)
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID
+</ResponseField>
+
+<ResponseField name="pieza_id" type="string">
+  Associated piece ID (if any)
+</ResponseField>
+
+<ResponseField name="monto" type="number" required>
+  Cost amount
+</ResponseField>
+
+<ResponseField name="concepto" type="string">
+  Cost description
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the cost was recorded
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+# Cost without piece association
+curl -X POST https://api.example.com/api/costos \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "monto": 2500,
+    "concepto": "Materiales de arcilla"
+  }'
+
+# Cost associated with a piece
+curl -X POST https://api.example.com/api/costos \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "pieza_id": "123",
+    "monto": 1500,
+    "concepto": "Esmalte especial para vasija"
+  }'
+```
+
+```javascript JavaScript
+// Cost without piece association
+const response = await fetch('/api/costos', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    alumna_id: '550e8400-e29b-41d4-a716-446655440000',
+    monto: 2500,
+    concepto: 'Materiales de arcilla'
+  })
+});
+const costo = await response.json();
+
+// Cost associated with a piece
+const response2 = await fetch('/api/costos', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    alumna_id: '550e8400-e29b-41d4-a716-446655440000',
+    pieza_id: '123',
+    monto: 1500,
+    concepto: 'Esmalte especial para vasija'
+  })
+});
+const costoPieza = await response2.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "1",
+  "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+  "pieza_id": "123",
+  "monto": "1500",
+  "concepto": "Esmalte especial para vasija",
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Error Responses
+
+```json
+{
+  "error": "alumna_id and monto are required"
+}
+```
+
+---
+
+## GET /api/costos
+
+Retrieve cost records. Students see only their own costs, admins see all costs.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+Returns an array of cost objects.
+
+<ResponseField name="id" type="string" required>
+  Cost identifier
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID
+</ResponseField>
+
+<ResponseField name="pieza_id" type="string">
+  Associated piece ID (if any)
+</ResponseField>
+
+<ResponseField name="monto" type="number" required>
+  Cost amount (default: 0)
+</ResponseField>
+
+<ResponseField name="concepto" type="string">
+  Cost description
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Cost timestamp
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/costos \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/costos', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const costos = await response.json();
+```
+</CodeGroup>
+
+Response (Student - own costs only):
+```json
+[
+  {
+    "id": "1",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "pieza_id": "123",
+    "monto": "1500",
+    "concepto": "Esmalte especial para vasija",
+    "created_at": "2024-01-15T10:30:00.000Z"
+  },
+  {
+    "id": "2",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "pieza_id": null,
+    "monto": "2500",
+    "concepto": "Materiales de arcilla",
+    "created_at": "2024-01-10T14:20:00.000Z"
+  }
+]
+```
+
+Response (Admin - all costs):
+```json
+[
+  {
+    "id": "1",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "pieza_id": "123",
+    "monto": "1500",
+    "concepto": "Esmalte especial para vasija",
+    "created_at": "2024-01-15T10:30:00.000Z"
+  },
+  {
+    "id": "3",
+    "alumna_id": "660e8400-e29b-41d4-a716-446655440001",
+    "pieza_id": null,
+    "monto": "3000",
+    "concepto": "Kit de herramientas",
+    "created_at": "2024-01-14T09:00:00.000Z"
+  }
+]
+```
+
+## Notes
+
+- The `monto` field is stored as a Decimal in the database and returned as a string in JSON responses
+- The default value for `monto` is 0 if not specified
+- Costs can be associated with a specific piece via `pieza_id` or left general to the student
+- When a student is deleted, their costs are also deleted (cascade)
+- Students can only view their own cost records
+- Admins have full access to all cost records
+- The `pieza_id` is converted to BigInt internally when provided

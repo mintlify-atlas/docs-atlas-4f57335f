@@ -1,0 +1,265 @@
+---
+title: 'Turnos (Schedules)'
+description: 'Manage class schedules and assignments'
+---
+
+## GET /api/turnos
+
+Retrieve all available class schedules.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+Returns an array of schedule objects.
+
+<ResponseField name="id" type="string" required>
+  Unique schedule identifier (UUID)
+</ResponseField>
+
+<ResponseField name="dia" type="string" required>
+  Day of the week (e.g., "Lunes", "Martes", "Miércoles")
+</ResponseField>
+
+<ResponseField name="horario" type="string" required>
+  Time range for the class (e.g., "14:00 - 17:00")
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the schedule was created
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/turnos \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/turnos', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const turnos = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+[
+  {
+    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "dia": "Lunes",
+    "horario": "14:00 - 17:00",
+    "created_at": "2024-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "660e8400-e29b-41d4-a716-446655440002",
+    "dia": "Miércoles",
+    "horario": "18:00 - 21:00",
+    "created_at": "2024-01-01T10:00:00.000Z"
+  },
+  {
+    "id": "660e8400-e29b-41d4-a716-446655440003",
+    "dia": "Sábado",
+    "horario": "10:00 - 13:00",
+    "created_at": "2024-01-01T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+## POST /api/turnos
+
+Create a new class schedule.
+
+### Authentication
+
+Requires authentication token (typically admin).
+
+### Request
+
+<ParamField body="dia" type="string" required>
+  Day of the week
+</ParamField>
+
+<ParamField body="horario" type="string" required>
+  Time range for the class
+</ParamField>
+
+### Response
+
+Returns the created schedule object.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X POST https://api.example.com/api/turnos \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dia": "Viernes",
+    "horario": "15:00 - 18:00"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('/api/turnos', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    dia: 'Viernes',
+    horario: '15:00 - 18:00'
+  })
+});
+const turno = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "660e8400-e29b-41d4-a716-446655440004",
+  "dia": "Viernes",
+  "horario": "15:00 - 18:00",
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Error Responses
+
+```json
+{
+  "error": "Día y horario son obligatorios"
+}
+```
+
+---
+
+## PUT /api/turnos/:id
+
+Update an existing class schedule.
+
+### Authentication
+
+Requires authentication token (typically admin).
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Schedule ID (UUID)
+</ParamField>
+
+<ParamField body="dia" type="string">
+  Updated day of the week
+</ParamField>
+
+<ParamField body="horario" type="string">
+  Updated time range
+</ParamField>
+
+### Response
+
+Returns the updated schedule object.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/turnos/660e8400-e29b-41d4-a716-446655440004 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "horario": "16:00 - 19:00"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('/api/turnos/660e8400-e29b-41d4-a716-446655440004', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    horario: '16:00 - 19:00'
+  })
+});
+const turno = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "660e8400-e29b-41d4-a716-446655440004",
+  "dia": "Viernes",
+  "horario": "16:00 - 19:00",
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+## DELETE /api/turnos/:id
+
+Delete a class schedule. This will fail if students are currently assigned to this schedule.
+
+### Authentication
+
+Requires authentication token (typically admin).
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Schedule ID (UUID)
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "Turno eliminado"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X DELETE https://api.example.com/api/turnos/660e8400-e29b-41d4-a716-446655440004 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/turnos/660e8400-e29b-41d4-a716-446655440004', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const result = await response.json();
+```
+</CodeGroup>
+
+### Error Responses
+
+If students are assigned to this schedule, the deletion will fail due to foreign key constraints. The error will be handled by the global error middleware.
+
+## Notes
+
+- Schedules are referenced by students through the `turno_id` field in the Alumna model
+- Each schedule represents a specific class time slot
+- Students can be assigned to a schedule when creating or updating their profile
+- Deleting a schedule with assigned students will fail to maintain data integrity
+- Both `dia` and `horario` are stored as strings, allowing flexible formatting

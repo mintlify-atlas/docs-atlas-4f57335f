@@ -1,0 +1,390 @@
+---
+title: 'Notifications'
+description: 'Send and manage student notifications in Barro Tal Vez'
+---
+
+## Overview
+
+The notification system allows administrators to send messages to individual students. Notifications appear in the student's app with unread indicators and can be marked as read or deleted.
+
+## Notification Model
+
+The `Notificacion` model stores messages sent to students:
+
+```prisma
+model Notificacion {
+  id         BigInt   @id @default(autoincrement())
+  mensaje    String
+  leida      Boolean  @default(false)
+  created_at DateTime @default(now())
+  alumna_id  String   @db.Uuid
+  alumna     Alumna   @relation(
+    fields: [alumna_id], 
+    references: [id], 
+    onDelete: Cascade
+  )
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mensaje` | String | Notification content/text |
+| `leida` | Boolean | Read status (default: false) |
+| `created_at` | DateTime | Timestamp when notification was sent |
+| `alumna_id` | UUID | Student who receives this notification |
+
+<Note>
+  Each notification is linked to exactly one student. To message multiple students, create separate notification records for each.
+</Note>
+
+## Admin Workflows
+
+### Creating Notifications
+
+Administrators create notifications through the backend API:
+
+**Endpoint**: `POST /notificaciones` (implementation varies)
+
+**Request body**:
+```json
+{
+  "alumna_id": "uuid-of-student",
+  "mensaje": "Tu pieza está lista para retirar. Pasa por el taller!"
+}
+```
+
+The notification is created with:
+- `leida: false` (unread by default)
+- `created_at: now()` (current timestamp)
+
+### Common Notification Types
+
+Typical messages sent to students:
+
+<CardGroup cols={2}>
+  <Card title="Piece Status Updates" icon="bell">
+    "Tu pieza 'Taza de Gato' está lista para retirar!"
+  </Card>
+  
+  <Card title="Payment Reminders" icon="dollar-sign">
+    "Recordatorio: Cuota de Abril pendiente ($15.000)"
+  </Card>
+  
+  <Card title="Schedule Changes" icon="calendar">
+    "Atención: La clase del Lunes se mueve a las 15:00"
+  </Card>
+  
+  <Card title="Workshop Announcements" icon="megaphone">
+    "Nuevo horario de taller disponible los Sábados!"
+  </Card>
+</CardGroup>
+
+## Student Workflows
+
+### Viewing Notifications
+
+Students access notifications through the bell icon in the app header:
+
+<Steps>
+  <Step title="Click bell icon">
+    Located in top-right of student dashboard header
+  </Step>
+  
+  <Step title="Notification panel opens">
+    Bottom sheet slides up showing all notifications
+  </Step>
+  
+  <Step title="Auto-mark as read">
+    Opening the panel automatically marks all notifications as read
+  </Step>
+</Steps>
+
+### Unread Indicator
+
+The bell icon shows a visual badge when there are unread notifications:
+
+```jsx
+{tieneNotificacionesNuevas && (
+  <span className="absolute top-0 right-1 w-2.5 h-2.5 
+    bg-[#84572F] rounded-full border-2 border-[#D0C5B1]">
+  </span>
+)}
+```
+
+- **Red dot** (terracotta `#84572F`) appears on bell icon
+- Calculated by: `notificaciones.some(n => !n.leida)`
+- Disappears when panel is opened
+
+### Notification Panel UI
+
+The notification panel is a modal bottom sheet:
+
+- **Height**: 85% of viewport (`h-[85vh]`)
+- **Handle**: Drag indicator at top for mobile UX
+- **Header**: "Notificaciones" title with clear button
+- **Content**: Scrollable list of notification cards
+- **Empty state**: 📭 icon with "No tienes notificaciones nuevas"
+
+### Notification Card Design
+
+Each notification displays as a card:
+
+```jsx
+<div className="bg-[#F8F6F1] p-4 rounded-2xl shadow-sm 
+  border-l-4 border-[#92ADA4] flex gap-4">
+  
+  <div className="w-10 h-10 rounded-full bg-[#92ADA4]/20 
+    flex items-center justify-center">
+    {/* Icon SVG */}
+  </div>
+  
+  <div>
+    <p className="text-sm font-bold">{mensaje}</p>
+    <p className="text-xs uppercase">
+      {formatearFechaRelativa(created_at)}
+    </p>
+  </div>
+</div>
+```
+
+**Visual elements**:
+- **Left border**: 4px sage green accent (`#92ADA4`)
+- **Icon**: Circular badge with tag icon
+- **Message**: Bold text in dark color
+- **Timestamp**: Relative time format (see below)
+
+### Relative Timestamps
+
+Notifications show human-readable timestamps:
+
+| Condition | Display Format |
+|-----------|----------------|
+| Today | "Hoy, 3:45 PM" |
+| Yesterday | "Ayer, 10:20 AM" |
+| Older | "15/03/2024, 2:30 PM" |
+
+Implemented by `formatearFechaRelativa()` function:
+
+```javascript
+function formatearFechaRelativa(fechaISO) {
+  const fecha = new Date(fechaISO)
+  const hoy = new Date()
+  
+  const esHoy = /* same day comparison */
+  const esAyer = /* yesterday comparison */
+  
+  if (esHoy) return `Hoy, ${horaStr}`
+  if (esAyer) return `Ayer, ${horaStr}`
+  return `${fechaStr}, ${horaStr}`
+}
+```
+
+<Info>
+  The 12-hour time format with AM/PM makes timestamps more readable for students in Argentina.
+</Info>
+
+## Notification Actions
+
+### Mark All as Read
+
+When the notification panel is opened:
+
+```javascript
+onClick={() => {
+  setMostrarNotificaciones(true)
+  if (tieneNotificacionesNuevas) {
+    api.put('/alumnas/me/notificaciones/leer')
+    setNotificaciones(prev => 
+      prev.map(n => ({ ...n, leida: true }))
+    )
+  }
+}}
+```
+
+**Endpoint**: `PUT /alumnas/me/notificaciones/leer`
+
+- Marks all notifications for current student as `leida: true`
+- Updates local state immediately for responsive UI
+- Red dot indicator disappears
+
+### Delete All Notifications
+
+Students can clear their notification history:
+
+1. **Click "Limpiar todas"** button in panel header
+2. Notifications are deleted from database
+3. Panel shows empty state
+
+**Endpoint**: `DELETE /alumnas/me/notificaciones`
+
+```javascript
+await api.delete('/alumnas/me/notificaciones')
+setNotificaciones([])
+```
+
+<Warning>
+  Deleting notifications is permanent - they cannot be recovered. Students may want to read important messages before clearing.
+</Warning>
+
+## API Endpoints
+
+### Get Student Notifications
+
+**Endpoint**: `GET /alumnas/me/notificaciones`
+
+**Auth**: Student (JWT token)
+
+**Response**:
+```json
+[
+  {
+    "id": 1,
+    "mensaje": "Tu pieza está lista para retirar",
+    "leida": false,
+    "created_at": "2024-03-15T14:30:00Z",
+    "alumna_id": "uuid-string"
+  }
+]
+```
+
+### Mark Notifications as Read
+
+**Endpoint**: `PUT /alumnas/me/notificaciones/leer`
+
+**Auth**: Student
+
+**Action**: Sets `leida: true` for all notifications belonging to the student
+
+### Delete All Notifications
+
+**Endpoint**: `DELETE /alumnas/me/notificaciones`
+
+**Auth**: Student
+
+**Action**: Permanently deletes all notifications for the student
+
+### Generic Endpoints
+
+The generic notification endpoints (admin access):
+
+**GET `/notificaciones`**: Get notifications for a specific student
+
+**POST `/notificaciones/:id/read`**: Mark individual notification as read
+
+These are defined in `notificaciones.controller.js` but not currently exposed in the frontend UI.
+
+## Data Access Control
+
+Notifications are filtered by user:
+
+```javascript
+export const getMisNotificaciones = async (req, res, next) => {
+  const serialized = await getMisNotificacionesService(req.user.id)
+  res.json(serialized)
+}
+```
+
+- **Students**: Only see their own notifications (filtered by `alumna_id`)
+- **Admins**: Can access all notifications or filter by student
+
+<Info>
+  The service layer ensures students can never access notifications belonging to other students.
+</Info>
+
+## Cascade Deletion
+
+When a student account is deleted:
+
+```prisma
+alumna Alumna @relation(..., onDelete: Cascade)
+```
+
+All notifications for that student are automatically removed to maintain database integrity.
+
+## BigInt Serialization
+
+Notification IDs use BigInt (autoincrement). The controller includes:
+
+```javascript
+BigInt.prototype.toJSON = function () {
+  return this.toString()
+}
+```
+
+This converts notification IDs to strings in JSON responses.
+
+## Visual Design
+
+### Panel Backdrop
+
+- **Overlay**: Black with 40% opacity (`bg-black/40`)
+- **Blur**: Backdrop blur effect for depth
+- **Click to close**: Clicking outside panel dismisses it
+
+### Panel Animation
+
+The bottom sheet slides up smoothly:
+
+- **Transition**: Opacity and transform animations
+- **Rounded top**: 32px radius (`rounded-t-[32px]`) for modern mobile feel
+- **Shadow**: Large shadow (`shadow-2xl`) for elevation
+
+### Empty State
+
+```jsx
+<div className="flex flex-col items-center justify-center h-full">
+  <span className="text-4xl mb-2">📭</span>
+  <p className="text-center font-medium text-[#84572F]">
+    No tienes notificaciones nuevas.
+  </p>
+</div>
+```
+
+Open mailbox emoji conveys "empty inbox" metaphor.
+
+## Technical Implementation
+
+Key files for notifications:
+
+- **Schema**: `~/workspace/source/backend/prisma/schema.prisma` (lines 47-56)
+- **Controller**: `~/workspace/source/backend/src/controllers/notificaciones.controller.js`
+- **Alumnas Controller**: `~/workspace/source/backend/src/controllers/alumnas.controller.js` (lines 136-161)
+- **Student UI**: `~/workspace/source/frontend/src/componentes/DashboardAlumna.jsx` (lines 536-595)
+
+## Integration Points
+
+Notifications work with other features:
+
+- **Piece status changes**: Admin can notify when piece reaches "lista_retiro"
+- **Payment reminders**: Send notifications when `cuota_al_dia` is false
+- **Schedule updates**: Notify students when their turno is edited
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Clear Messages" icon="message">
+    Write concise notifications with specific actions: "Tu pieza está lista - pasa a retirar!" instead of "Actualización de pieza"
+  </Card>
+  
+  <Card title="Timely Notifications" icon="clock">
+    Send notifications immediately when relevant events occur (piece ready, payment due)
+  </Card>
+  
+  <Card title="Avoid Spam" icon="ban">
+    Don't overwhelm students with frequent messages - combine related updates when possible
+  </Card>
+  
+  <Card title="Action-Oriented" icon="hand-point-right">
+    Include what the student should do: "Recordatorio: Paga tu cuota antes del viernes"
+  </Card>
+</CardGroup>
+
+## Future Enhancements
+
+Potential notification system improvements:
+
+- **Individual read/delete**: Mark or delete single notifications
+- **Notification types**: Categorize messages (payment, piece, announcement)
+- **Push notifications**: Mobile/browser push for instant delivery
+- **Notification history**: Archive instead of delete for reference
+- **Admin interface**: UI for creating notifications (currently API-only)

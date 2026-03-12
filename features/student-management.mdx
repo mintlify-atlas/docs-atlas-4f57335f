@@ -1,0 +1,200 @@
+---
+title: 'Student Management'
+description: 'How admins manage student profiles, access, and enrollment in Barro Tal Vez'
+---
+
+## Overview
+
+The student management system allows workshop administrators to create, update, and manage student (alumna) profiles. Each student has a dedicated account with profile information, assigned shifts, and payment status tracking.
+
+## Student Profile Fields
+
+Based on the `Alumna` model in the database schema, each student profile contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nombre_completo` | String | Full name of the student |
+| `email` | String | Unique email address for login |
+| `password_hash` | String | Encrypted password (default: "123" for new accounts) |
+| `rol` | String | User role (default: "alumna") |
+| `telefono` | String | Contact phone number (optional) |
+| `foto_url` | String | Profile photo URL (optional) |
+| `turno_id` | UUID | Assigned shift/class schedule |
+| `cuota_al_dia` | Boolean | Payment status indicator (default: false) |
+| `cambiar_password_obligatorio` | Boolean | Forces password change on first login (default: true) |
+
+## Admin Workflows
+
+### Creating a New Student
+
+Admins use the **GestionAlumnas** component to register new students:
+
+<Steps>
+  <Step title="Access student management">
+    Navigate to the student management panel in the admin dashboard
+  </Step>
+  
+  <Step title="Fill in required fields">
+    Enter the student's full name and email address (required fields)
+  </Step>
+  
+  <Step title="Add optional information">
+    - Upload a profile photo
+    - Add phone number
+    - Assign a shift (turno)
+  </Step>
+  
+  <Step title="Submit registration">
+    The system automatically generates a default password ("123") and sets `cambiar_password_obligatorio` to true
+  </Step>
+</Steps>
+
+<Note>
+  New students are required to change their password upon first login for security.
+</Note>
+
+### Editing Student Profiles
+
+Admins can update student information at any time:
+
+1. **Click the edit icon** (✏️) on a student card
+2. **Modify any field** including name, email, phone, assigned shift
+3. **Upload a new photo** (existing photo is preserved if no new file is uploaded)
+4. **Save changes** to update the profile immediately
+
+The edit form is highlighted in blue when active, making it clear which student is being modified.
+
+### Managing Payment Status
+
+The `cuota_al_dia` field tracks whether a student's membership fees are current:
+
+- **Toggle status**: Click the payment status badge on any student card
+- **Visual indicators**:
+  - ✅ Green badge: "Cuota Al Día" (payments current)
+  - ⚠️ Red badge: "Cuota Pendiente" (payments overdue)
+
+<Info>
+  Payment status is displayed prominently on each student card and can be toggled with a single click via the `/alumnas/:id/cuota` endpoint.
+</Info>
+
+### Filtering Students by Shift
+
+The management interface includes a shift filter dropdown:
+
+- **View all students** or filter by specific shift (turno)
+- **Dynamic counter** shows number of students matching the current filter
+- Useful for managing class rosters and capacity planning
+
+### Deleting Students
+
+Admins can remove student accounts:
+
+<Warning>
+  Deleting a student cascades to remove all associated records including payments, costs, pieces, and notifications due to `onDelete: Cascade` relationships in the database.
+</Warning>
+
+1. Click the delete icon (🗑️) on a student card
+2. Confirm the deletion in the popup dialog
+3. Student and all related data are permanently removed
+
+## Photo Management
+
+Student profile photos are uploaded as multipart form data:
+
+- **Accepted formats**: Any image file type
+- **Upload endpoint**: `/alumnas` (POST) or `/alumnas/:id` (PUT)
+- **Storage**: Photos are saved to `/uploads/` directory
+- **Display**: Full URLs are constructed by prepending the API base URL
+
+### Photo Upload Flow
+
+```javascript
+const formData = new FormData()
+formData.append('nombre_completo', nombre)
+formData.append('email', email)
+formData.append('foto', archivoFoto) // File object
+
+await api.post('/alumnas', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+})
+```
+
+## Student Profile Cards
+
+Each student is displayed as a card in the management grid:
+
+- **Profile photo**: Circular avatar (clickable to view full-size)
+- **Student name**: Displayed prominently at the top
+- **Contact info**: Email and phone number with icons
+- **Assigned shift**: Blue badge showing day and time (e.g., "Lunes 14:00 - 17:00")
+- **Payment status**: Color-coded badge with toggle functionality
+- **Hover actions**: Edit and delete buttons appear on hover (always visible on mobile)
+
+## Role-Based Access Control
+
+The student management system enforces role-based permissions:
+
+| Role | Permissions |
+|------|-------------|
+| `admin` | Full access to create, edit, delete, and view all students |
+| `alumna` | Can only view and edit their own profile via `/alumnas/me` |
+
+<CardGroup cols={2}>
+  <Card title="Admin Endpoint" icon="shield-halved">
+    `/alumnas` - Full CRUD operations on all student profiles
+  </Card>
+  
+  <Card title="Student Endpoint" icon="user">
+    `/alumnas/me` - Self-service profile management (read/update only)
+  </Card>
+</CardGroup>
+
+## First Login Experience
+
+When a new student logs in for the first time:
+
+1. **Password change modal** blocks access to the app
+2. Student must enter a new password to continue
+3. `cambiar_password_obligatorio` is set to false
+4. Student gains full access to their dashboard
+
+This ensures students don't continue using the default "123" password.
+
+## Integration with Other Features
+
+Student profiles are central to the entire system:
+
+- **Shifts (Turnos)**: Students are assigned to specific class times
+- **Pieces (Piezas)**: All pottery work is linked to the student creator
+- **Payments (Pagos)**: Payment history tracks student account balance
+- **Costs (Costos)**: Charges for materials and classes are assigned to students
+- **Notifications**: System messages are sent to individual students
+
+## Technical Implementation
+
+Key files for student management:
+
+- **Schema**: `~/workspace/source/backend/prisma/schema.prisma` (lines 10-33)
+- **Controller**: `~/workspace/source/backend/src/controllers/alumnas.controller.js`
+- **Admin UI**: `~/workspace/source/frontend/src/componentes/GestionAlumnas.jsx`
+- **Student UI**: `~/workspace/source/frontend/src/componentes/vistasAlumna/VistaMiPerfil.jsx`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Unique Emails" icon="envelope">
+    Each student must have a unique email address enforced by database constraint
+  </Card>
+  
+  <Card title="Photo Guidelines" icon="camera">
+    Recommend uploading clear, well-lit profile photos for easy student identification
+  </Card>
+  
+  <Card title="Shift Assignment" icon="calendar">
+    Assign students to shifts during creation to ensure proper class organization
+  </Card>
+  
+  <Card title="Payment Tracking" icon="money-bill">
+    Regularly update `cuota_al_dia` status to match actual payment records
+  </Card>
+</CardGroup>

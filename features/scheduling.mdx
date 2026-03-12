@@ -1,0 +1,353 @@
+---
+title: 'Scheduling'
+description: 'Manage class shifts and student schedules in Barro Tal Vez'
+---
+
+## Overview
+
+The scheduling system organizes pottery classes into **turnos** (shifts) - recurring time slots on specific days of the week. Each student is assigned to one turno, which determines their regular class attendance schedule.
+
+## Turno Model
+
+The `Turno` model defines weekly class schedules:
+
+```prisma
+model Turno {
+  id         String   @id @default(dbgenerated("gen_random_uuid()"))
+  created_at DateTime @default(now())
+  dia        String   // e.g., "Lunes", "Martes"
+  horario    String   // e.g., "14:00 - 17:00"
+  alumnas    Alumna[] // Inverse relation to students
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dia` | String | Day of the week in Spanish (Lunes, Martes, Miércoles, etc.) |
+| `horario` | String | Time range in 24-hour format (e.g., "18:00 - 20:00") |
+| `alumnas` | Relation | List of students assigned to this shift |
+
+<Note>
+  Turnos are **template schedules**, not individual class instances. They define recurring weekly time slots.
+</Note>
+
+## Admin Workflows
+
+### Creating a New Turno
+
+Admins use the **GestionTurnos** component to create class schedules:
+
+<Steps>
+  <Step title="Select day of week">
+    Choose from dropdown: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+  </Step>
+  
+  <Step title="Enter time range">
+    Type the class hours (e.g., "14:00 - 17:00", "18:00 a 20:00")
+  </Step>
+  
+  <Step title="Click 'Agregar +'">
+    The new turno is created and appears in the active shifts grid
+  </Step>
+</Steps>
+
+**Example turnos**:
+- Lunes 14:00 - 17:00 (afternoon session)
+- Miércoles 18:00 - 20:00 (evening session)
+- Sábado 10:00 - 13:00 (weekend morning)
+
+### Editing Existing Turnos
+
+Admins can modify shift schedules:
+
+1. **Click the edit icon** (✏️) on a turno card
+2. The form switches to edit mode with:
+   - Blue border highlighting
+   - Pre-filled current values
+   - "Guardar Cambios" button
+3. **Modify** day or time as needed
+4. **Save** to update the turno
+
+<Info>
+  Editing a turno automatically updates the schedule for all students assigned to it. The change is reflected immediately in student profiles.
+</Info>
+
+### Deleting Turnos
+
+Admins can remove unused shifts:
+
+- Click the delete icon (🗑️) on a turno card
+- Confirm deletion in the popup
+
+<Warning>
+  **Cannot delete turnos with assigned students**. The database foreign key constraint prevents deletion if any `Alumna` records reference this `turno_id`. You'll see an error message: "No se puede borrar: Probablemente hay alumnas asignadas a este turno."
+</Warning>
+
+To delete a turno with students:
+1. First reassign all students to different turnos
+2. Then delete the empty turno
+
+## Student Assignment
+
+### Assigning During Registration
+
+When creating a new student, admins can assign a turno:
+
+- **Dropdown menu** in student creation form
+- Shows all available turnos as "Día - Horario"
+- Select one or leave as "-- Sin Turno --"
+
+The assignment creates the foreign key relationship:
+
+```prisma
+model Alumna {
+  turno_id String? @db.Uuid
+  turno    Turno?  @relation(...)
+}
+```
+
+### Changing Student Turno
+
+Admins can reassign students to different shifts:
+
+1. **Edit the student** profile
+2. **Select new turno** from dropdown
+3. **Save changes**
+
+The student's schedule updates immediately.
+
+### Students Without Turnos
+
+Students can exist without an assigned turno (`turno_id: null`):
+
+- Shows "Sin turno" badge in student management
+- Useful for:
+  - Students on hold/hiatus
+  - Open studio members without fixed schedule
+  - Trial/guest students
+
+## Student View
+
+Students see their assigned turno in their profile view:
+
+- **Display format**: Blue badge with day and time
+- **Example**: "📅 Lunes 14:00 - 17:00"
+- **Location**: Shown on student profile card in admin view and in student's own profile section
+
+<Info>
+  Students cannot change their own turno - this is admin-controlled to manage class capacity and organization.
+</Info>
+
+## Turno Display Grid
+
+The **GestionTurnos** interface shows active shifts in a responsive grid:
+
+- **Layout**: 3 columns on desktop, 2 on tablet, 1 on mobile
+- **Each card shows**:
+  - Day of week (large text, beige color `#D0C5B1`)
+  - Time range (gray text)
+  - Edit and delete icons (visible on hover)
+- **Hover effects**: 
+  - Border changes from gray to green (`#7DD17C`)
+  - Action buttons fade in
+- **Currently editing**: Blue border (`border-blue-500`) highlights active card
+
+## Filtering Students by Turno
+
+In the student management view, admins can filter:
+
+<Steps>
+  <Step title="Use turno filter dropdown">
+    Located in the student list header
+  </Step>
+  
+  <Step title="Select a turno or 'Todas'">
+    Options show as "Día - Horario" format
+  </Step>
+  
+  <Step title="View filtered results">
+    Counter updates to show number of matching students
+  </Step>
+</Steps>
+
+**Use cases**:
+- View class rosters for specific time slots
+- Check capacity for each shift
+- Contact all students in a particular class
+
+## API Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/turnos` | Admin | Get all turnos |
+| POST | `/turnos` | Admin | Create a new turno |
+| PUT | `/turnos/:id` | Admin | Update turno details |
+| DELETE | `/turnos/:id` | Admin | Delete turno (fails if students assigned) |
+
+### Create Turno Request
+
+```json
+{
+  "dia": "Lunes",
+  "horario": "14:00 - 17:00"
+}
+```
+
+Both fields are required. The endpoint returns 400 error if either is missing:
+
+```javascript
+if (!dia || !horario) {
+  return res.status(400).json({ 
+    error: 'Día y horario son obligatorios' 
+  })
+}
+```
+
+### Update Turno Request
+
+```json
+{
+  "dia": "Martes",           // optional
+  "horario": "15:00 - 18:00"  // optional
+}
+```
+
+Partial updates are supported - include only fields to change.
+
+## Database Relationships
+
+The turno-alumna relationship uses optional foreign key:
+
+```prisma
+model Alumna {
+  turno_id String? @db.Uuid
+  turno    Turno?  @relation(
+    fields: [turno_id], 
+    references: [id], 
+    onUpdate: NoAction
+  )
+}
+```
+
+- **Optional**: `turno_id` can be null (students without schedule)
+- **On Update**: NoAction (prevents accidental cascade updates)
+- **On Delete**: Not specified, so default RESTRICT prevents deleting turno with assigned students
+
+## Form Validation
+
+The turno management form includes:
+
+- **Day selector**: Dropdown with all 7 days of week
+- **Time input**: Free-form text field (flexible format)
+- **Submit disabled**: While loading/saving to prevent duplicates
+- **Instant feedback**: Success (✅) or error (❌) messages appear below form
+
+### Accepted Time Formats
+
+The `horario` field accepts various formats:
+
+- `14:00 - 17:00` (with dash)
+- `18:00 a 20:00` (with 'a')
+- `10:00 - 13:00hs` (with 'hs' suffix)
+
+No strict validation - admins can use workshop-specific conventions.
+
+## Visual Design
+
+The turno management interface uses:
+
+- **Background**: Dark gray (`bg-gray-800`)
+- **Accent**: Taller green (`text-taller-green`) for headers
+- **Cards**: Dark (`bg-gray-900`) with rounded corners
+- **Form**: 
+  - Default: Gray background (`bg-gray-700`)
+  - Editing: Blue background (`bg-blue-900/30`) with blue border
+
+<CardGroup cols={2}>
+  <Card title="Normal State" icon="calendar">
+    Gray cards with green hover effect for neutral browsing
+  </Card>
+  
+  <Card title="Edit Mode" icon="pen">
+    Blue highlighting makes it clear which turno is being modified
+  </Card>
+</CardGroup>
+
+## Technical Implementation
+
+Key files for scheduling:
+
+- **Schema**: `~/workspace/source/backend/prisma/schema.prisma` (lines 36-44)
+- **Controller**: `~/workspace/source/backend/src/controllers/turnos.controller.js`
+- **Admin UI**: `~/workspace/source/frontend/src/componentes/GestionTurnos.jsx`
+- **Service Layer**: `~/workspace/source/backend/src/services/turnos.service.js`
+
+## Common Workflows
+
+### Setting Up Initial Schedule
+
+<Steps>
+  <Step title="Create all weekly shifts">
+    Add turnos for each recurring class (e.g., Mon/Wed evenings, Tue/Thu afternoons, Sat mornings)
+  </Step>
+  
+  <Step title="Assign students to shifts">
+    Edit each student profile to assign their regular turno
+  </Step>
+  
+  <Step title="Review class rosters">
+    Use the filter to check enrollment in each shift
+  </Step>
+</Steps>
+
+### Adjusting Shift Times
+
+<Steps>
+  <Step title="Edit the turno">
+    Click edit icon and modify the horario
+  </Step>
+  
+  <Step title="Save changes">
+    All students see updated schedule immediately
+  </Step>
+  
+  <Step title="Notify students">
+    Send notifications about the schedule change (see Notifications feature)
+  </Step>
+</Steps>
+
+### Managing Capacity
+
+<Steps>
+  <Step title="Filter by turno">
+    View students in a specific shift
+  </Step>
+  
+  <Step title="Check count">
+    The filtered list shows number of enrolled students
+  </Step>
+  
+  <Step title="Redistribute if needed">
+    Reassign students to balance class sizes
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Consistent Naming" icon="font">
+    Use consistent time format across all turnos (e.g., always "14:00 - 17:00" not mixing with "2pm - 5pm")
+  </Card>
+  
+  <Card title="Capacity Planning" icon="users">
+    Create turnos before opening registration to know available slots
+  </Card>
+  
+  <Card title="Clear Communication" icon="bullhorn">
+    When editing turno times, notify all assigned students immediately
+  </Card>
+  
+  <Card title="Orphaned Students" icon="user-slash">
+    Before deleting a turno, verify all students are reassigned to prevent "Sin turno" status
+  </Card>
+</CardGroup>

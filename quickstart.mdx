@@ -1,80 +1,150 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get Barro Tal Vez running locally in minutes"
 ---
 
-## Get started in three steps
+## Get started with Barro Tal Vez
 
-Get your documentation site running locally and make your first customization.
+Get the pottery workshop management system running on your local machine with Docker Compose.
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Prerequisites">
+    Make sure you have the following installed:
+    - Docker Desktop (v20.10 or higher)
+    - Git
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    <Note>
+      Docker Desktop includes both Docker and Docker Compose, which are required to run Barro Tal Vez.
+    </Note>
+  </Step>
+
+  <Step title="Clone the repository">
+    Clone the Barro Tal Vez repository to your local machine:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    git clone https://github.com/massimoquirolo/barro-tal-vez-v2.git
+    cd barro-tal-vez-v2
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Start the application">
+    Use Docker Compose to build and start all services:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    docker-compose up --build
+    ```
+    
+    This command will:
+    - Build the frontend (React + Vite)
+    - Build the backend (Express.js + Prisma)
+    - Start PostgreSQL database
+    - Set up networking between services
+    
+    <Note>
+      The first build may take 5-10 minutes. Subsequent starts will be much faster.
+    </Note>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Initialize the database">
+    In a new terminal window, run the Prisma migrations and seed script:
+    
+    ```bash
+    # Access the backend container
+    docker exec -it barro-api sh
+    
+    # Run Prisma migrations
+    npx prisma migrate deploy
+    
+    # Seed initial data
+    node prisma/seed.js
+    
+    # Exit the container
+    exit
+    ```
+    
+    This creates a test user with the following credentials:
+    - **Email**: test@barro.com
+    - **Password**: 123
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Access the application">
+    The application is now running at:
+    
+    - **Frontend**: [http://localhost:8082](http://localhost:8082)
+    - **Backend API**: [http://localhost:3001](http://localhost:3001)
+    - **Database**: localhost:5433
+    
+    <CardGroup cols={2}>
+      <Card title="Student Dashboard" icon="user">
+        Login with test credentials to access the student view and manage your pottery pieces.
+      </Card>
+      <Card title="Admin Dashboard" icon="shield">
+        Create an admin user to access inventory, billing, and student management features.
+      </Card>
+    </CardGroup>
+  </Step>
 
-### Step 3: Go live
+  <Step title="First login">
+    1. Open [http://localhost:8082](http://localhost:8082) in your browser
+    2. Login with:
+       - Email: `test@barro.com`
+       - Password: `123`
+    3. You'll be prompted to change your password on first login
+    
+    <Warning>
+      The default credentials are for development only. Always use strong passwords in production.
+    </Warning>
+  </Step>
+</Steps>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Verify the installation
+
+Confirm everything is working correctly:
+
+```bash
+# Check running containers
+docker ps
+
+# You should see three containers:
+# - barro-web (frontend)
+# - barro-api (backend)
+# - barro-db (database)
+```
+
+## Stop the application
+
+When you're done, stop all services:
+
+```bash
+docker-compose down
+```
+
+To remove volumes (database data):
+
+```bash
+docker-compose down -v
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation Guide" icon="book" href="/installation">
+    Detailed setup for development without Docker
+  </Card>
+  
+  <Card title="Admin Guide" icon="user-shield" href="/guides/admin-guide">
+    Learn how to manage students, pieces, and billing
+  </Card>
+  
+  <Card title="Student Guide" icon="palette" href="/guides/student-guide">
+    Track your pieces through the pottery workflow
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/authentication">
+    Explore the REST API endpoints
+  </Card>
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  **Need help?** Check the [GitHub repository](https://github.com/massimoquirolo/barro-tal-vez-v2) for issues and discussions.
 </Note>

@@ -1,0 +1,504 @@
+---
+title: 'Piezas (Pieces)'
+description: 'Manage ceramic pieces, track progress, and maintain photo history'
+---
+
+## POST /api/piezas
+
+Create a new ceramic piece. Students can only create pieces for themselves.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField body="nombre_pieza" type="string" required>
+  Name of the piece (2-100 characters)
+</ParamField>
+
+<ParamField body="foto" type="file">
+  Initial photo of the piece
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique piece identifier (auto-incremented BigInt as string)
+</ResponseField>
+
+<ResponseField name="nombre_pieza" type="string" required>
+  Name of the piece
+</ResponseField>
+
+<ResponseField name="foto_url" type="string">
+  Photo URL path
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  Current state of the piece (default: "creacion")
+</ResponseField>
+
+<ResponseField name="fecha_entrega" type="string">
+  Expected delivery date
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  ID of the student who owns the piece
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the piece was created
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X POST https://api.example.com/api/piezas \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "nombre_pieza=Vasija decorativa" \
+  -F "foto=@piece-photo.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('nombre_pieza', 'Vasija decorativa');
+if (photoFile) formData.append('foto', photoFile);
+
+const response = await fetch('/api/piezas', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+const pieza = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "123",
+  "nombre_pieza": "Vasija decorativa",
+  "foto_url": "/uploads/piece-1234567890.jpg",
+  "estado": "creacion",
+  "fecha_entrega": null,
+  "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Validation Errors
+
+```json
+{
+  "error": "El nombre debe tener al menos 2 caracteres"
+}
+```
+
+---
+
+## GET /api/piezas
+
+Retrieve pieces with pagination. Students see only their pieces, admins can see all or filter by student.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="15">
+  Number of items per page
+</ParamField>
+
+<ParamField query="alumnaId" type="string">
+  Filter by student ID (admin only)
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="array" required>
+  Array of piece objects
+</ResponseField>
+
+<ResponseField name="meta" type="object" required>
+  Pagination metadata
+  <ul>
+    <li>`total`: Total number of pieces</li>
+    <li>`page`: Current page number</li>
+    <li>`limit`: Items per page</li>
+    <li>`totalPages`: Total number of pages</li>
+  </ul>
+</ResponseField>
+
+### Piece Object Fields
+
+<ResponseField name="id" type="string" required>
+  Unique piece identifier
+</ResponseField>
+
+<ResponseField name="nombre_pieza" type="string" required>
+  Name of the piece
+</ResponseField>
+
+<ResponseField name="foto_url" type="string">
+  Current photo URL
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  Current state (creacion, modelado, secado, listo_horno, horneando, bizcocho, esmaltado, horno_2, lista_retiro, entregada, rota)
+</ResponseField>
+
+<ResponseField name="fecha_entrega" type="string">
+  Expected delivery date
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID
+</ResponseField>
+
+<ResponseField name="alumna" type="object">
+  Student information (admin only) - includes `nombre_completo` and `email`
+</ResponseField>
+
+<ResponseField name="historial_fotos" type="array" required>
+  Array of photo history records, ordered by most recent first
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Creation timestamp
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET "https://api.example.com/api/piezas?page=1&limit=15" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/piezas?page=1&limit=15', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const { data, meta } = await response.json();
+```
+</CodeGroup>
+
+Response (Student):
+```json
+{
+  "data": [
+    {
+      "id": "123",
+      "nombre_pieza": "Vasija decorativa",
+      "foto_url": "/uploads/piece-123.jpg",
+      "estado": "horneando",
+      "fecha_entrega": "2024-02-01T00:00:00.000Z",
+      "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+      "historial_fotos": [
+        {
+          "id": "45",
+          "pieza_id": "123",
+          "estado": "modelado",
+          "foto_url": "/uploads/history-456.jpg",
+          "created_at": "2024-01-20T14:00:00.000Z"
+        }
+      ],
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "meta": {
+    "total": 45,
+    "page": 1,
+    "limit": 15,
+    "totalPages": 3
+  }
+}
+```
+
+Response (Admin):
+```json
+{
+  "data": [
+    {
+      "id": "123",
+      "nombre_pieza": "Vasija decorativa",
+      "foto_url": "/uploads/piece-123.jpg",
+      "estado": "horneando",
+      "fecha_entrega": "2024-02-01T00:00:00.000Z",
+      "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+      "alumna": {
+        "nombre_completo": "María García",
+        "email": "maria@example.com"
+      },
+      "historial_fotos": [],
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "meta": {
+    "total": 150,
+    "page": 1,
+    "limit": 15,
+    "totalPages": 10
+  }
+}
+```
+
+---
+
+## PUT /api/piezas/:id
+
+Update a piece's information. When the state is updated, a notification is automatically sent to the student.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Piece ID
+</ParamField>
+
+<ParamField body="nombre_pieza" type="string">
+  Updated name of the piece
+</ParamField>
+
+<ParamField body="estado" type="string">
+  Updated state (creacion, modelado, secado, listo_horno, horneando, bizcocho, esmaltado, horno_2, lista_retiro, entregada, rota)
+</ParamField>
+
+<ParamField body="alumna_id" type="string">
+  Updated student ID (admin only)
+</ParamField>
+
+<ParamField body="foto" type="file">
+  Updated photo file
+</ParamField>
+
+### Response
+
+Returns the updated piece object with alumna and historial_fotos included.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/piezas/123 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "estado=horneando"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('estado', 'horneando');
+
+const response = await fetch('/api/piezas/123', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+const pieza = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "123",
+  "nombre_pieza": "Vasija decorativa",
+  "foto_url": "/uploads/piece-123.jpg",
+  "estado": "horneando",
+  "fecha_entrega": "2024-02-01T00:00:00.000Z",
+  "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+  "alumna": {
+    "nombre_completo": "María García",
+    "email": "maria@example.com"
+  },
+  "historial_fotos": [],
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### State Values
+
+Valid estado values and their display names:
+- `creacion` - Modelado
+- `modelado` - Modelado
+- `secado` - Secando
+- `listo_horno` - Listo para Horno
+- `horneando` - Horneando
+- `bizcocho` - Bizcocho
+- `esmaltado` - Esmaltado
+- `horno_2` - 2do Horneado
+- `lista_retiro` - Lista Retirar
+- `entregada` - Entregada
+- `rota` - Rota
+
+### Error Responses
+
+```json
+{
+  "error": "Debe proporcionar al menos un campo para actualizar"
+}
+```
+
+---
+
+## DELETE /api/piezas/:id
+
+Delete a ceramic piece. Cascades to delete associated photo history.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Piece ID
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "Pieza eliminada correctamente"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X DELETE https://api.example.com/api/piezas/123 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/piezas/123', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const result = await response.json();
+```
+</CodeGroup>
+
+### Error Responses
+
+```json
+{
+  "error": "Pieza no encontrada"
+}
+```
+
+---
+
+## POST /api/piezas/:id/historial-fotos
+
+Add a photo to the piece's history with a specific state.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Piece ID
+</ParamField>
+
+<ParamField body="estado" type="string" required>
+  State of the piece at the time of the photo
+</ParamField>
+
+<ParamField body="foto" type="file" required>
+  Photo file to upload
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  History record ID
+</ResponseField>
+
+<ResponseField name="pieza_id" type="string" required>
+  Piece ID
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  State at the time of the photo
+</ResponseField>
+
+<ResponseField name="foto_url" type="string" required>
+  Photo URL path
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the photo was added
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X POST https://api.example.com/api/piezas/123/historial-fotos \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "estado=modelado" \
+  -F "foto=@progress-photo.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('estado', 'modelado');
+formData.append('foto', photoFile);
+
+const response = await fetch('/api/piezas/123/historial-fotos', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+const historial = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "45",
+  "pieza_id": "123",
+  "estado": "modelado",
+  "foto_url": "/uploads/history-1234567890.jpg",
+  "created_at": "2024-01-20T14:00:00.000Z"
+}
+```
+
+### Error Responses
+
+```json
+{
+  "error": "Se requiere una foto"
+}
+```
+
+```json
+{
+  "error": "El estado es requerido"
+}
+```

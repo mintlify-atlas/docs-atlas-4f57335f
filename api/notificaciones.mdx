@@ -1,0 +1,220 @@
+---
+title: 'Notificaciones (Notifications)'
+description: 'Manage student notifications and read status'
+---
+
+## GET /api/notificaciones
+
+Retrieve all notifications for the authenticated user.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+Returns an array of notification objects ordered by creation date (most recent first).
+
+<ResponseField name="id" type="string" required>
+  Unique notification identifier (BigInt as string)
+</ResponseField>
+
+<ResponseField name="mensaje" type="string" required>
+  Notification message content
+</ResponseField>
+
+<ResponseField name="leida" type="boolean" required>
+  Whether the notification has been read (default: false)
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the notification was created
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID associated with the notification
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/notificaciones \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/notificaciones', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const notificaciones = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+[
+  {
+    "id": "3",
+    "mensaje": "Tu pieza \"Vasija decorativa\" está en el estado Horneando.",
+    "leida": false,
+    "created_at": "2024-01-15T14:30:00.000Z",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  {
+    "id": "2",
+    "mensaje": "Tu pieza \"Taza\" está en el estado Lista Retirar.",
+    "leida": true,
+    "created_at": "2024-01-14T10:00:00.000Z",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  {
+    "id": "1",
+    "mensaje": "Tu pieza \"Plato\" está en el estado Esmaltado.",
+    "leida": true,
+    "created_at": "2024-01-13T16:20:00.000Z",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+]
+```
+
+---
+
+## PUT /api/notificaciones/:id/leer
+
+Mark a specific notification as read.
+
+### Authentication
+
+Requires authentication token. Users can only mark their own notifications as read.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Notification ID
+</ParamField>
+
+### Response
+
+Returns the updated notification object.
+
+<ResponseField name="id" type="string" required>
+  Notification identifier
+</ResponseField>
+
+<ResponseField name="mensaje" type="string" required>
+  Notification message
+</ResponseField>
+
+<ResponseField name="leida" type="boolean" required>
+  Read status (will be true after this operation)
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Creation timestamp
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/notificaciones/3/leer \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/notificaciones/3/leer', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const notificacion = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "3",
+  "mensaje": "Tu pieza \"Vasija decorativa\" está en el estado Horneando.",
+  "leida": true,
+  "created_at": "2024-01-15T14:30:00.000Z",
+  "alumna_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+---
+
+## Alternative: Mark All as Read
+
+To mark all notifications as read, use the alumnas endpoint:
+
+### PUT /api/alumnas/me/notificaciones/leer
+
+Mark all unread notifications as read for the authenticated student.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+```json
+{
+  "message": "Notificaciones leidas"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/alumnas/me/notificaciones/leer \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/me/notificaciones/leer', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const result = await response.json();
+```
+</CodeGroup>
+
+---
+
+## Notes
+
+- Notifications are automatically created when a piece's state is updated (see Piezas API)
+- The notification message includes the piece name and the new state in a human-readable format
+- Notifications are ordered by `created_at` in descending order (newest first)
+- When a student is deleted, their notifications are also deleted (cascade)
+- Students can only access their own notifications
+- The `leida` field defaults to `false` when a notification is created
+- BigInt IDs are serialized to strings in JSON responses
+
+## Automatic Notification Creation
+
+Notifications are automatically generated when updating a piece's state:
+
+- **creacion** → "Tu pieza \"[nombre]\" está en el estado Modelado."
+- **modelado** → "Tu pieza \"[nombre]\" está en el estado Modelado."
+- **secado** → "Tu pieza \"[nombre]\" está en el estado Secando."
+- **listo_horno** → "Tu pieza \"[nombre]\" está en el estado Listo para Horno."
+- **horneando** → "Tu pieza \"[nombre]\" está en el estado Horneando."
+- **bizcocho** → "Tu pieza \"[nombre]\" está en el estado Bizcocho."
+- **esmaltado** → "Tu pieza \"[nombre]\" está en el estado Esmaltado."
+- **horno_2** → "Tu pieza \"[nombre]\" está en el estado 2do Horneado."
+- **lista_retiro** → "Tu pieza \"[nombre]\" está en el estado Lista Retirar."
+- **entregada** → "Tu pieza \"[nombre]\" está en el estado Entregada."
+- **rota** → "Tu pieza \"[nombre]\" está en el estado Rota."

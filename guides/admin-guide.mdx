@@ -1,0 +1,333 @@
+---
+title: Admin Guide
+description: Complete guide for administrators managing Barro Tal Vez workshop operations
+---
+
+## Overview
+
+As an admin, you have full control over the Barro Tal Vez ceramic workshop. Your dashboard provides tools to manage students, track all pieces through their lifecycle, handle finances, and organize class schedules.
+
+## Accessing the Admin Dashboard
+
+After logging in with your admin credentials, you'll see the admin panel with three main sections accessible via the top navigation:
+
+- **🏺 Piezas** (Pieces) - Main view for managing all pieces and finances
+- **👩‍🎨 Alumnas** (Students) - Student management
+- **📅 Turnos** (Shifts) - Class schedule management
+
+## Managing Students
+
+### Adding a New Student
+
+<Steps>
+  <Step title="Navigate to Students">
+    Click the **👩‍🎨 Alumnas** tab in the top navigation
+  </Step>
+  
+  <Step title="Fill in Student Details">
+    In the "Nueva Alumna" form at the top, enter:
+    - **Nombre Completo** (Full Name) - Required
+    - **Email** - Required
+    - **Teléfono** (Phone) - Optional
+    - **Asignar Turno** (Assign Shift) - Select from available shifts
+    - **Foto de Perfil** (Profile Photo) - Optional
+  </Step>
+  
+  <Step title="Register">
+    Click **Registrar Alumna** to create the student account
+  </Step>
+</Steps>
+
+The system automatically generates a temporary password for new students, which they'll be required to change on first login.
+
+### Editing Student Information
+
+<Steps>
+  <Step title="Locate the Student">
+    Scroll to the student card in the grid below, or use the "Filtrar por turno" dropdown to filter by shift
+  </Step>
+  
+  <Step title="Click Edit">
+    Hover over the student card and click the **✏️** (edit) icon in the top-right corner
+  </Step>
+  
+  <Step title="Update Information">
+    The form at the top will populate with the student's current data. Make your changes
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **Guardar Cambios** to save, or **Cancelar** to discard
+  </Step>
+</Steps>
+
+### Managing Payment Status
+
+Each student card shows a payment badge:
+- **✅ Cuota Al Día** (Green) - Payment up to date
+- **⚠️ Cuota Pendiente** (Red) - Payment pending
+
+Click directly on the badge to toggle the payment status.
+
+### Deleting a Student
+
+Hover over a student card and click the **🗑️** icon. Confirm the deletion when prompted.
+
+<Warning>
+  Deleting a student is permanent and cannot be undone.
+</Warning>
+
+## Managing Pieces
+
+### Understanding Piece States
+
+Every piece goes through a 10-stage lifecycle:
+
+1. **🏺 Modelado** (Modeling) - Initial creation
+2. **💨 Secando** (Drying) - Drying phase
+3. **⏲️ Listo para horno** (Ready for kiln) - Dry and ready
+4. **🔥 Horneando** (Firing) - First firing in progress
+5. **🍪 Bizcocho** (Bisque) - After first firing
+6. **🎨 Esmaltado** (Glazed) - Glaze applied
+7. **🔥🔥 2do Horneado** (Second firing) - Glaze firing
+8. **🎁 Lista Retirar** (Ready for pickup) - Finished
+9. **🏠 Entregada** (Delivered) - Picked up by student
+10. **💔 Rota** (Broken) - Damaged/broken
+
+### Viewing All Pieces
+
+In the **🏺 Piezas** tab, you'll see:
+- Complete piece registry with photos
+- Current state for each piece
+- Owner (alumna) name
+- Registration date
+- Photo history (if available)
+
+### Changing Piece State
+
+<Steps>
+  <Step title="Find the Piece">
+    Scroll through the piece list or filter by student using the "Filtrar por alumna" dropdown
+  </Step>
+  
+  <Step title="Select New State">
+    Click the state dropdown on the piece card and select the new state
+  </Step>
+  
+  <Step title="Automatic Update">
+    The state updates immediately. Students receive a notification of the change
+  </Step>
+</Steps>
+
+### Editing Piece Information
+
+<Steps>
+  <Step title="Click Edit Icon">
+    Click the **✏️** icon next to the piece you want to edit
+  </Step>
+  
+  <Step title="Modify Details">
+    An edit form appears at the top where you can change:
+    - Piece name
+    - Reassign to different student
+    - Upload new photo
+  </Step>
+  
+  <Step title="Save or Cancel">
+    Click **Guardar Cambios** to save or **Cancelar** to cancel
+  </Step>
+</Steps>
+
+### Deleting a Piece
+
+Click the **🗑️** button on a piece card and confirm the deletion.
+
+### Viewing Photo History
+
+Pieces with multiple photos show a photo history gallery below the main image. Click any thumbnail to view it full-screen.
+
+## Managing Finances
+
+The finance management tools appear at the top of the **🏺 Piezas** view in two side-by-side panels.
+
+### Recording a Payment
+
+<Steps>
+  <Step title="Select Student">
+    In the "Registrar Pago" (Record Payment) panel on the left, choose the student from the dropdown
+  </Step>
+  
+  <Step title="Enter Payment Details">
+    - **Concepto** (Concept) - Description (e.g., "Cuota Marzo")
+    - **Monto** - Amount in Argentine pesos
+  </Step>
+  
+  <Step title="Submit">
+    Click **Registrar** to record the payment
+  </Step>
+</Steps>
+
+The payment is immediately reflected in the student's account balance.
+
+### Recording a Cost/Charge
+
+<Steps>
+  <Step title="Select Student">
+    In the "Registrar Costo" (Record Cost) panel on the right, choose the student
+  </Step>
+  
+  <Step title="Link to Piece (Optional)">
+    If the cost is for a specific piece (like firing), select it from the "Pieza asociada" dropdown
+  </Step>
+  
+  <Step title="Enter Cost Details">
+    - **Concepto** - Description (e.g., "Horneado pieza grande")
+    - **Monto** - Amount to charge
+  </Step>
+  
+  <Step title="Submit">
+    Click **Registrar** to add the charge to the student's account
+  </Step>
+</Steps>
+
+<Tip>
+  Common costs include:
+  - Monthly membership fees ("Cuota mensual")
+  - Firing charges ("Horneado")
+  - Materials ("Materiales")
+  - Special classes or workshops
+</Tip>
+
+## Managing Shifts (Turnos)
+
+### Creating a New Shift
+
+<Steps>
+  <Step title="Navigate to Shifts">
+    Click the **📅 Turnos** tab
+  </Step>
+  
+  <Step title="Select Day and Time">
+    In the "Nuevo Turno" form:
+    - **Día** - Select day of the week from dropdown
+    - **Horario** - Enter time range (e.g., "18:00 a 20:00")
+  </Step>
+  
+  <Step title="Create Shift">
+    Click **Agregar +** to create the shift
+  </Step>
+</Steps>
+
+### Editing a Shift
+
+<Steps>
+  <Step title="Click Edit">
+    Hover over the shift card and click the **✏️** icon
+  </Step>
+  
+  <Step title="Modify Details">
+    The form populates with current data. Make your changes
+  </Step>
+  
+  <Step title="Save">
+    Click **Guardar Cambios**
+  </Step>
+</Steps>
+
+### Deleting a Shift
+
+Click the **🗑️** icon on a shift card. 
+
+<Warning>
+  You cannot delete a shift that has students assigned to it. Reassign the students first.
+</Warning>
+
+## Common Admin Workflows
+
+<AccordionGroup>
+  <Accordion title="Processing a kiln load">
+    1. Filter pieces by state: "Listo para horno"
+    2. Note which pieces are going in
+    3. Change all pieces to "Horneando"
+    4. After firing completes, change to "Bizcocho"
+    5. Students receive notifications at each state change
+  </Accordion>
+
+  <Accordion title="Monthly billing cycle">
+    1. Go to **👩‍🎨 Alumnas** tab
+    2. Review each student's payment status badge
+    3. For students with pending payments, go to **🏺 Piezas**
+    4. Use "Registrar Costo" to add monthly fee
+    5. When student pays, use "Registrar Pago" to record it
+    6. Update payment badge status on student card
+  </Accordion>
+
+  <Accordion title="Student pickup day">
+    1. Go to **🏺 Piezas** tab
+    2. Filter by state: "Lista Retirar"
+    3. As each student picks up their pieces, change state to "Entregada"
+    4. The piece moves to the student's "Mis Horneados" (Fired Pieces) section
+  </Accordion>
+
+  <Accordion title="Handling a broken piece">
+    1. Find the piece in the **🏺 Piezas** tab
+    2. Change state to "💔 Rota"
+    3. The student is automatically notified
+    4. Consider whether to charge for materials or firing
+  </Accordion>
+
+  <Accordion title="New semester setup">
+    1. Go to **📅 Turnos** to create new class shifts
+    2. Go to **👩‍🎨 Alumnas** to add new students
+    3. Assign each student to their shift
+    4. Send login credentials to new students
+    5. Remind them they'll need to change their password on first login
+  </Accordion>
+</AccordionGroup>
+
+## Tips and Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep Photos Updated" icon="camera">
+    Encourage students to upload photos at each stage. This creates a valuable record and helps track progress.
+  </Card>
+  
+  <Card title="Consistent State Updates" icon="arrows-rotate">
+    Update piece states promptly so students always know where their work is in the process.
+  </Card>
+  
+  <Card title="Regular Financial Reviews" icon="dollar-sign">
+    Check student payment badges weekly to stay on top of accounts receivable.
+  </Card>
+  
+  <Card title="Use Piece-Linked Costs" icon="link">
+    When recording firing charges, link them to specific pieces for better tracking and transparency.
+  </Card>
+</CardGroup>
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="What happens when I delete a student?">
+    The student account and all associated data are permanently deleted. Their pieces will show "Desconocido" (Unknown) as the owner. Consider marking accounts inactive instead of deleting.
+  </Accordion>
+
+  <Accordion title="Can I move pieces between students?">
+    Yes. Click the edit icon (✏️) on a piece and use the "Reasignar Alumna" dropdown to transfer ownership.
+  </Accordion>
+
+  <Accordion title="How do students receive notifications?">
+    When you change a piece state, the system automatically creates a notification in the student's account. They see a red dot on the bell icon and can view all notifications in the notification panel.
+  </Accordion>
+
+  <Accordion title="Can I undo a state change?">
+    Yes. Simply change the piece state back to the previous stage using the dropdown. The system doesn't restrict backward movement.
+  </Accordion>
+
+  <Accordion title="What if I need to charge a student for something not related to a piece?">
+    Use "Registrar Costo" and leave "Pieza asociada" as "-- Sin pieza --". Enter the description in the "Concepto" field.
+  </Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+If you encounter any issues or need additional features, contact the system administrator or refer to the [Technical Documentation](/docs/technical-overview).

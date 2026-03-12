@@ -1,0 +1,667 @@
+---
+title: 'Alumnas (Students)'
+description: 'Manage student profiles, authentication, and notifications'
+---
+
+## GET /api/alumnas
+
+Retrieve all students (admin only). Includes associated schedule (turno) information.
+
+### Authentication
+
+Requires authentication token with admin role.
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique student identifier (UUID)
+</ResponseField>
+
+<ResponseField name="nombre_completo" type="string" required>
+  Full name of the student
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  Student's email address (unique)
+</ResponseField>
+
+<ResponseField name="telefono" type="string">
+  Phone number
+</ResponseField>
+
+<ResponseField name="foto_url" type="string">
+  Profile photo URL path
+</ResponseField>
+
+<ResponseField name="rol" type="string">
+  User role (default: "alumna")
+</ResponseField>
+
+<ResponseField name="turno_id" type="string">
+  Associated schedule ID (UUID)
+</ResponseField>
+
+<ResponseField name="turno" type="object">
+  Associated schedule object with `dia` and `horario` fields
+</ResponseField>
+
+<ResponseField name="cuota_al_dia" type="boolean">
+  Whether the student's payment is up to date
+</ResponseField>
+
+<ResponseField name="cambiar_password_obligatorio" type="boolean">
+  Whether password change is required on next login
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  Timestamp when the student was created
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/alumnas \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const alumnas = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "nombre_completo": "María García",
+    "email": "maria@example.com",
+    "telefono": "+54 11 1234-5678",
+    "foto_url": "/uploads/photo.jpg",
+    "rol": "alumna",
+    "turno_id": "660e8400-e29b-41d4-a716-446655440001",
+    "turno": {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "dia": "Lunes",
+      "horario": "14:00 - 17:00"
+    },
+    "cuota_al_dia": true,
+    "cambiar_password_obligatorio": false,
+    "created_at": "2024-01-15T10:30:00.000Z"
+  }
+]
+```
+
+---
+
+## POST /api/alumnas
+
+Create a new student (admin only). Supports profile photo upload.
+
+### Authentication
+
+Requires authentication token with admin role.
+
+### Request
+
+<ParamField body="nombre_completo" type="string" required>
+  Full name of the student
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Student's email address (must be unique)
+</ParamField>
+
+<ParamField body="password" type="string">
+  Initial password (defaults to "123" if not provided)
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Phone number
+</ParamField>
+
+<ParamField body="turno_id" type="string">
+  Schedule ID to assign (UUID)
+</ParamField>
+
+<ParamField body="foto" type="file">
+  Profile photo file upload
+</ParamField>
+
+### Response
+
+Returns the created student object with all fields.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X POST https://api.example.com/api/alumnas \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "nombre_completo=María García" \
+  -F "email=maria@example.com" \
+  -F "telefono=+54 11 1234-5678" \
+  -F "turno_id=660e8400-e29b-41d4-a716-446655440001" \
+  -F "foto=@profile.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('nombre_completo', 'María García');
+formData.append('email', 'maria@example.com');
+formData.append('telefono', '+54 11 1234-5678');
+formData.append('turno_id', '660e8400-e29b-41d4-a716-446655440001');
+formData.append('foto', fileInput.files[0]);
+
+const response = await fetch('/api/alumnas', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+const alumna = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "nombre_completo": "María García",
+  "email": "maria@example.com",
+  "telefono": "+54 11 1234-5678",
+  "foto_url": "/uploads/photo-1234567890.jpg",
+  "rol": "alumna",
+  "turno_id": "660e8400-e29b-41d4-a716-446655440001",
+  "cambiar_password_obligatorio": true,
+  "cuota_al_dia": false,
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Error Responses
+
+```json
+{
+  "error": "El email ya existe"
+}
+```
+
+```json
+{
+  "error": "Faltan datos obligatorios"
+}
+```
+
+---
+
+## PUT /api/alumnas/:id
+
+Update a student's profile (admin only). Can update photo, schedule, phone, name, and email.
+
+### Authentication
+
+Requires authentication token with admin role.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Student ID (UUID)
+</ParamField>
+
+<ParamField body="nombre_completo" type="string">
+  Updated full name
+</ParamField>
+
+<ParamField body="email" type="string">
+  Updated email address
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Updated phone number
+</ParamField>
+
+<ParamField body="turno_id" type="string">
+  Updated schedule ID (UUID)
+</ParamField>
+
+<ParamField body="foto" type="file">
+  Updated profile photo file
+</ParamField>
+
+### Response
+
+Returns the updated student object including the associated turno.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/alumnas/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "telefono=+54 11 9876-5432" \
+  -F "turno_id=660e8400-e29b-41d4-a716-446655440002"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('telefono', '+54 11 9876-5432');
+formData.append('turno_id', '660e8400-e29b-41d4-a716-446655440002');
+
+const response = await fetch('/api/alumnas/550e8400-e29b-41d4-a716-446655440000', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+const alumna = await response.json();
+```
+</CodeGroup>
+
+---
+
+## PATCH /api/alumnas/:id/cuota
+
+Toggle a student's payment status (admin only).
+
+### Authentication
+
+Requires authentication token with admin role.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Student ID (UUID)
+</ParamField>
+
+<ParamField body="cuota_al_dia" type="boolean" required>
+  Payment up-to-date status
+</ParamField>
+
+### Response
+
+Returns the updated student object.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PATCH https://api.example.com/api/alumnas/550e8400-e29b-41d4-a716-446655440000/cuota \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"cuota_al_dia": true}'
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/550e8400-e29b-41d4-a716-446655440000/cuota', {
+  method: 'PATCH',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ cuota_al_dia: true })
+});
+const alumna = await response.json();
+```
+</CodeGroup>
+
+---
+
+## DELETE /api/alumnas/:id
+
+Delete a student (admin only). Cascades to delete associated records.
+
+### Authentication
+
+Requires authentication token with admin role.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  Student ID (UUID)
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "Alumna eliminada"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X DELETE https://api.example.com/api/alumnas/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/550e8400-e29b-41d4-a716-446655440000', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const result = await response.json();
+```
+</CodeGroup>
+
+---
+
+## GET /api/alumnas/me
+
+Get the authenticated student's own profile.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+Returns the authenticated student's profile including associated turno.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/alumnas/me \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/me', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const me = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "nombre_completo": "María García",
+  "email": "maria@example.com",
+  "telefono": "+54 11 1234-5678",
+  "foto_url": "/uploads/photo.jpg",
+  "turno": {
+    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "dia": "Lunes",
+    "horario": "14:00 - 17:00"
+  },
+  "cuota_al_dia": true,
+  "cambiar_password_obligatorio": false
+}
+```
+
+---
+
+## PUT /api/alumnas/me
+
+Update the authenticated student's own profile.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField body="nombre_completo" type="string">
+  Updated full name
+</ParamField>
+
+<ParamField body="email" type="string">
+  Updated email address (must be unique)
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Updated phone number
+</ParamField>
+
+<ParamField body="foto" type="file">
+  Updated profile photo file
+</ParamField>
+
+### Response
+
+Returns the updated profile.
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/alumnas/me \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "nombre_completo=María García López" \
+  -F "telefono=+54 11 9999-8888" \
+  -F "foto=@new-photo.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('nombre_completo', 'María García López');
+formData.append('telefono', '+54 11 9999-8888');
+if (photoFile) formData.append('foto', photoFile);
+
+const response = await fetch('/api/alumnas/me', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+const updated = await response.json();
+```
+</CodeGroup>
+
+### Error Responses
+
+```json
+{
+  "error": "El email ya está en uso"
+}
+```
+
+---
+
+## PUT /api/alumnas/me/password
+
+Update the authenticated student's password.
+
+### Authentication
+
+Requires authentication token.
+
+### Request
+
+<ParamField body="password" type="string" required>
+  New password
+</ParamField>
+
+### Response
+
+```json
+{
+  "message": "Contraseña actualizada correctamente",
+  "cambiar_password_obligatorio": false
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/alumnas/me/password \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"password": "newSecurePassword123"}'
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/me/password', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ password: 'newSecurePassword123' })
+});
+const result = await response.json();
+```
+</CodeGroup>
+
+---
+
+## GET /api/alumnas/me/notificaciones
+
+Get all notifications for the authenticated student.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Notification ID
+</ResponseField>
+
+<ResponseField name="mensaje" type="string" required>
+  Notification message
+</ResponseField>
+
+<ResponseField name="leida" type="boolean" required>
+  Whether the notification has been read
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the notification was created
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID associated with the notification
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/alumnas/me/notificaciones \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/me/notificaciones', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const notificaciones = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+[
+  {
+    "id": "1",
+    "mensaje": "Tu pieza \"Vasija\" está en el estado Horneando.",
+    "leida": false,
+    "created_at": "2024-01-15T14:30:00.000Z",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  {
+    "id": "2",
+    "mensaje": "Tu pieza \"Taza\" está en el estado Lista Retirar.",
+    "leida": true,
+    "created_at": "2024-01-14T10:00:00.000Z",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+]
+```
+
+---
+
+## PUT /api/alumnas/me/notificaciones/leer
+
+Mark all unread notifications as read for the authenticated student.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+```json
+{
+  "message": "Notificaciones leidas"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X PUT https://api.example.com/api/alumnas/me/notificaciones/leer \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/me/notificaciones/leer', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const result = await response.json();
+```
+</CodeGroup>
+
+---
+
+## DELETE /api/alumnas/me/notificaciones
+
+Delete all notifications for the authenticated student.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+```json
+{
+  "message": "Notificaciones borradas"
+}
+```
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X DELETE https://api.example.com/api/alumnas/me/notificaciones \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/alumnas/me/notificaciones', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const result = await response.json();
+```
+</CodeGroup>

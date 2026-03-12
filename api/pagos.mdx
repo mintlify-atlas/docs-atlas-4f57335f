@@ -1,0 +1,198 @@
+---
+title: 'Pagos (Payments)'
+description: 'Track student payments and payment history'
+---
+
+## POST /api/pagos
+
+Create a new payment record for a student.
+
+### Authentication
+
+Requires authentication token (typically admin).
+
+### Request
+
+<ParamField body="alumna_id" type="string" required>
+  Student ID (UUID) for whom the payment is being recorded
+</ParamField>
+
+<ParamField body="monto" type="number" required>
+  Payment amount (decimal)
+</ParamField>
+
+<ParamField body="concepto" type="string">
+  Description or concept of the payment
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique payment identifier (auto-incremented BigInt as string)
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID
+</ResponseField>
+
+<ResponseField name="monto" type="number" required>
+  Payment amount
+</ResponseField>
+
+<ResponseField name="concepto" type="string">
+  Payment description
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Timestamp when the payment was recorded
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X POST https://api.example.com/api/pagos \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "monto": 5000,
+    "concepto": "Cuota mensual Enero 2024"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('/api/pagos', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    alumna_id: '550e8400-e29b-41d4-a716-446655440000',
+    monto: 5000,
+    concepto: 'Cuota mensual Enero 2024'
+  })
+});
+const pago = await response.json();
+```
+</CodeGroup>
+
+Response:
+```json
+{
+  "id": "1",
+  "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+  "monto": "5000",
+  "concepto": "Cuota mensual Enero 2024",
+  "created_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Error Responses
+
+```json
+{
+  "error": "alumna_id and monto are required"
+}
+```
+
+---
+
+## GET /api/pagos
+
+Retrieve payment records. Students see only their own payments, admins see all payments.
+
+### Authentication
+
+Requires authentication token.
+
+### Response
+
+Returns an array of payment objects.
+
+<ResponseField name="id" type="string" required>
+  Payment identifier
+</ResponseField>
+
+<ResponseField name="alumna_id" type="string" required>
+  Student ID
+</ResponseField>
+
+<ResponseField name="monto" type="number" required>
+  Payment amount
+</ResponseField>
+
+<ResponseField name="concepto" type="string">
+  Payment description
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  Payment timestamp
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```bash curl
+curl -X GET https://api.example.com/api/pagos \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/pagos', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const pagos = await response.json();
+```
+</CodeGroup>
+
+Response (Student - own payments only):
+```json
+[
+  {
+    "id": "1",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "monto": "5000",
+    "concepto": "Cuota mensual Enero 2024",
+    "created_at": "2024-01-15T10:30:00.000Z"
+  },
+  {
+    "id": "2",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "monto": "3000",
+    "concepto": "Materiales adicionales",
+    "created_at": "2024-01-10T14:20:00.000Z"
+  }
+]
+```
+
+Response (Admin - all payments):
+```json
+[
+  {
+    "id": "1",
+    "alumna_id": "550e8400-e29b-41d4-a716-446655440000",
+    "monto": "5000",
+    "concepto": "Cuota mensual Enero 2024",
+    "created_at": "2024-01-15T10:30:00.000Z"
+  },
+  {
+    "id": "3",
+    "alumna_id": "660e8400-e29b-41d4-a716-446655440001",
+    "monto": "5000",
+    "concepto": "Cuota mensual Enero 2024",
+    "created_at": "2024-01-14T09:00:00.000Z"
+  }
+]
+```
+
+## Notes
+
+- The `monto` field is stored as a Decimal in the database and returned as a string in JSON responses
+- Payments are associated with students via the `alumna_id` foreign key
+- When a student is deleted, their payments are also deleted (cascade)
+- Students can only view their own payment history
+- Admins have full access to all payment records

@@ -1,0 +1,421 @@
+---
+title: 'Environment Configuration'
+description: 'Configure environment variables for Barro Tal Vez deployment'
+---
+
+## Overview
+
+Barro Tal Vez requires specific environment variables for both the backend API and database connection. These variables control database access, authentication, server ports, and cross-origin settings.
+
+<Warning>
+  The examples shown here contain **default development values**. Never use these credentials in production environments.
+</Warning>
+
+## Backend Environment Variables
+
+The backend service requires the following environment variables, configured in the `docker-compose.yml` file:
+
+### DATABASE_URL
+
+PostgreSQL connection string used by Prisma ORM.
+
+**Format**:
+```
+postgresql://[USER]:[PASSWORD]@[HOST]:[PORT]/[DATABASE]?schema=public
+```
+
+**Docker Compose Configuration**:
+```yaml
+DATABASE_URL: postgresql://postgres:secreto_produccion_123@db:5432/barrotalvez?schema=public
+```
+
+**Components**:
+- `postgres` - Database user
+- `secreto_produccion_123` - Database password
+- `db` - Docker service name (resolves to container IP)
+- `5432` - PostgreSQL port inside container
+- `barrotalvez` - Database name
+- `schema=public` - PostgreSQL schema
+
+<Note>
+  When connecting from within Docker Compose, use the service name (`db`) as the host. When connecting from your local machine, use `localhost:5433`.
+</Note>
+
+### JWT_SECRET
+
+Secret key used to sign and verify JSON Web Tokens for authentication.
+
+**Docker Compose Configuration**:
+```yaml
+JWT_SECRET: mi_super_secreto_jwt
+```
+
+**Requirements**:
+- Minimum 32 characters recommended
+- Use cryptographically secure random string
+- Never commit to version control
+
+**Generate a secure secret**:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+<Warning>
+  Changing `JWT_SECRET` will invalidate all existing user sessions. Users will need to log in again.
+</Warning>
+
+### PORT
+
+Port number the Express server listens on inside the container.
+
+**Docker Compose Configuration**:
+```yaml
+PORT: 3000
+```
+
+**Default**: `3000` (internal container port)
+
+<Note>
+  The internal `PORT` is `3000`, but it's mapped to `3001` on the host via Docker's port mapping: `"3001:3000"`
+</Note>
+
+## Database Environment Variables
+
+The PostgreSQL service uses these environment variables:
+
+### POSTGRES_USER
+
+Database superuser name.
+
+```yaml
+POSTGRES_USER: postgres
+```
+
+**Default**: `postgres`
+
+### POSTGRES_PASSWORD
+
+Password for the PostgreSQL superuser.
+
+```yaml
+POSTGRES_PASSWORD: secreto_produccion_123
+```
+
+<Warning>
+  This default password is **insecure**. Change it immediately for any deployment outside of local development.
+</Warning>
+
+### POSTGRES_DB
+
+Name of the default database to create.
+
+```yaml
+POSTGRES_DB: barrotalvez
+```
+
+**Default**: `barrotalvez`
+
+## Frontend Configuration
+
+The frontend is a static React application built with Vite and served by Nginx. It connects to the backend API, so you'll need to configure the API URL.
+
+### API Base URL
+
+The frontend needs to know where the backend API is located. This is typically configured in the Vite build process.
+
+**Development** (local):
+```javascript
+const API_URL = 'http://localhost:3001';
+```
+
+**Production**:
+```javascript
+const API_URL = 'https://api.barrotalvez.com';
+```
+
+<Note>
+  Check your frontend source code (usually in `src/config` or `src/constants`) to see where the API URL is defined.
+</Note>
+
+## Complete Configuration Example
+
+Here's the complete environment configuration from `docker-compose.yml`:
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: barro-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secreto_produccion_123
+      POSTGRES_DB: barrotalvez
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  backend:
+    build: ./backend
+    container_name: barro-api
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:secreto_produccion_123@db:5432/barrotalvez?schema=public
+      JWT_SECRET: mi_super_secreto_jwt
+      PORT: 3000
+    depends_on:
+      - db
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    container_name: barro-web
+    restart: always
+    ports:
+      - "8082:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+```
+
+## Using .env Files (Alternative)
+
+For better security and flexibility, you can use `.env` files instead of hardcoding values in `docker-compose.yml`.
+
+### Create .env File
+
+Create a `.env` file in the same directory as `docker-compose.yml`:
+
+```bash .env
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password_here
+POSTGRES_DB=barrotalvez
+DB_PORT=5433
+
+# Backend
+BACKEND_PORT=3001
+JWT_SECRET=your_secure_jwt_secret_here
+INTERNAL_PORT=3000
+
+# Frontend
+FRONTEND_PORT=8082
+```
+
+### Update docker-compose.yml
+
+Reference environment variables using `${VARIABLE_NAME}` syntax:
+
+```yaml docker-compose.yml
+services:
+  db:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${DB_PORT}:5432"
+
+  backend:
+    ports:
+      - "${BACKEND_PORT}:${INTERNAL_PORT}"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: ${INTERNAL_PORT}
+```
+
+<Warning>
+  Add `.env` to your `.gitignore` file to prevent committing sensitive credentials:
+  
+  ```bash .gitignore
+  .env
+  .env.local
+  .env.production
+  ```
+</Warning>
+
+## Environment-Specific Configuration
+
+### Development
+
+**Characteristics**:
+- Permissive CORS settings
+- Verbose logging
+- Simple passwords acceptable
+- Local database port exposed
+
+**Example**:
+```yaml
+environment:
+  NODE_ENV: development
+  DATABASE_URL: postgresql://postgres:dev123@db:5432/barrotalvez?schema=public
+  JWT_SECRET: dev_secret_not_for_production
+  LOG_LEVEL: debug
+```
+
+### Production
+
+**Characteristics**:
+- Strict CORS settings
+- Error logging only
+- Strong passwords required
+- Database not exposed externally
+- HTTPS enforced
+
+**Example**:
+```yaml
+environment:
+  NODE_ENV: production
+  DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}?schema=public&sslmode=require
+  JWT_SECRET: ${JWT_SECRET}  # From secure secret manager
+  LOG_LEVEL: error
+  FRONTEND_URL: https://barrotalvez.com
+```
+
+<Warning>
+  In production:
+  - Enable SSL for database connections (`sslmode=require`)
+  - Use a secret management service (AWS Secrets Manager, HashiCorp Vault)
+  - Disable database port exposure by removing the `ports` mapping
+  - Set `NODE_ENV=production`
+</Warning>
+
+## Security Best Practices
+
+### 1. Credential Management
+
+<Steps>
+  <Step title="Never commit secrets">
+    Add all environment files to `.gitignore`:
+    ```bash
+    echo ".env*" >> .gitignore
+    ```
+  </Step>
+
+  <Step title="Use strong passwords">
+    Generate secure passwords:
+    ```bash
+    # 32-character random password
+    openssl rand -base64 32
+    ```
+  </Step>
+
+  <Step title="Rotate credentials regularly">
+    Change passwords and JWT secrets periodically, especially after:
+    - Security incidents
+    - Team member departures
+    - Every 90 days (recommended)
+  </Step>
+
+  <Step title="Use secret management services">
+    For production, use:
+    - AWS Secrets Manager
+    - HashiCorp Vault
+    - Google Cloud Secret Manager
+    - Azure Key Vault
+  </Step>
+</Steps>
+
+### 2. Database Security
+
+- **Use SSL/TLS** for database connections in production
+- **Create dedicated users** instead of using the postgres superuser
+- **Implement least privilege** - only grant necessary permissions
+- **Disable remote access** if not needed
+
+### 3. JWT Configuration
+
+- **Use strong secrets** (minimum 256 bits / 32 bytes)
+- **Set appropriate expiration** times (e.g., 24 hours)
+- **Implement token refresh** mechanisms
+- **Store tokens securely** in httpOnly cookies
+
+## Validation
+
+Verify your configuration is correct:
+
+### Check Backend Connection
+
+```bash
+# Test database connection
+docker compose exec backend npx prisma db pull
+
+# Should output: "Introspected X models, X enums"
+```
+
+### Check Environment Variables
+
+```bash
+# View backend environment
+docker compose exec backend env | grep -E '(DATABASE_URL|JWT_SECRET|PORT)'
+
+# View database environment
+docker compose exec db env | grep POSTGRES
+```
+
+### Test API Connection
+
+```bash
+# Health check endpoint (if implemented)
+curl http://localhost:3001/health
+
+# Or test a known endpoint
+curl http://localhost:3001/api/auth/status
+```
+
+## Troubleshooting
+
+### "JWT_SECRET is not defined"
+
+**Cause**: Missing or improperly loaded environment variable.
+
+**Solution**:
+1. Verify the variable is in `docker-compose.yml`
+2. Restart the backend service:
+   ```bash
+   docker compose restart backend
+   ```
+
+### "Error: P1001: Can't reach database server"
+
+**Cause**: Incorrect `DATABASE_URL` or database not running.
+
+**Solution**:
+1. Check database is running:
+   ```bash
+   docker compose ps db
+   ```
+2. Verify connection string matches database configuration
+3. Ensure hostname is `db` (service name), not `localhost`
+
+### "Port 5433 already in use"
+
+**Cause**: Another service is using the port.
+
+**Solution**:
+1. Change the host port in `docker-compose.yml`:
+   ```yaml
+   ports:
+     - "5434:5432"  # Use a different port
+   ```
+2. Update any local connection strings accordingly
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Setup" icon="docker" href="/deployment/docker-setup">
+    Learn how to deploy with Docker Compose
+  </Card>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Configure PostgreSQL and run migrations
+  </Card>
+</CardGroup>

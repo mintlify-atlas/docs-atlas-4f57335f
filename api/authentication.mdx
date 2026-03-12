@@ -1,0 +1,367 @@
+---
+title: 'Authentication'
+description: 'Authenticate users and manage access to the Barro Tal Vez API'
+---
+
+## Overview
+
+Barro Tal Vez uses JWT (JSON Web Token) based authentication to secure API endpoints. The authentication system supports role-based access control with two user roles:
+
+- **admin**: Full administrative access to all system features
+- **alumna**: Standard user access for graduates
+
+All protected endpoints require a valid JWT token to be included in the request headers.
+
+## Role-Based Access Control
+
+The system enforces role-based permissions at the middleware level. When you authenticate, the JWT token includes your role, which determines what resources you can access. Admin users have elevated privileges for managing users and system configuration.
+
+## JWT Token Structure
+
+JWT tokens issued by the API contain the following claims:
+
+- `id`: User's unique identifier
+- `email`: User's email address
+- `rol`: User's role (admin or alumna)
+- `exp`: Token expiration timestamp
+
+<Warning>
+  Tokens expire after 24 hours for login and 1 hour for registration. You must obtain a new token after expiration by logging in again.
+</Warning>
+
+## Using Tokens in Requests
+
+Include the JWT token in the `Authorization` header using the Bearer scheme:
+
+```
+Authorization: Bearer <your_token_here>
+```
+
+If no token is provided, you'll receive a `401 Unauthorized` error. Invalid or expired tokens will return a `403 Forbidden` error.
+
+## Endpoints
+
+### Register User
+
+<Note>
+  This endpoint creates a new user account with the 'alumna' role by default.
+</Note>
+
+```http
+POST /api/auth/register
+```
+
+#### Request Body
+
+<ParamField body="nombre_completo" type="string" required>
+  Full name of the user
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Valid email address for the user account
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Password for the account (will be hashed using bcrypt)
+</ParamField>
+
+#### Response
+
+<ResponseField name="token" type="string">
+  JWT token valid for 1 hour
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  User information object
+  
+  <ResponseField name="user.id" type="integer">
+    Unique user identifier
+  </ResponseField>
+  
+  <ResponseField name="user.email" type="string">
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="user.rol" type="string">
+    User's role (alumna or admin)
+  </ResponseField>
+  
+  <ResponseField name="user.nombre_completo" type="string">
+    User's full name
+  </ResponseField>
+</ResponseField>
+
+#### Example Request
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.barotalvez.com/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre_completo": "María González",
+    "email": "maria.gonzalez@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.barotalvez.com/api/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    nombre_completo: 'María González',
+    email: 'maria.gonzalez@example.com',
+    password: 'securePassword123'
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+</CodeGroup>
+
+#### Example Response
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXJpYS5nb256YWxlekBleGFtcGxlLmNvbSIsInJvbCI6ImFsdW1uYSIsImlhdCI6MTYxNjIzOTAyMiwiZXhwIjoxNjE2MjQyNjIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "user": {
+    "id": 1,
+    "email": "maria.gonzalez@example.com",
+    "rol": "alumna",
+    "nombre_completo": "María González"
+  }
+}
+```
+
+#### Error Responses
+
+| Status Code | Error Message | Description |
+|-------------|---------------|-------------|
+| 400 | All fields are required | One or more required fields are missing |
+| 400 | Email already exists | An account with this email already exists |
+
+---
+
+### Login
+
+Authenticate an existing user and receive a JWT token.
+
+```http
+POST /api/auth/login
+```
+
+#### Request Body
+
+<ParamField body="email" type="string" required>
+  User's email address (must be a valid email format)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password
+</ParamField>
+
+#### Response
+
+<ResponseField name="token" type="string">
+  JWT token valid for 24 hours
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  User information object
+  
+  <ResponseField name="user.id" type="integer">
+    Unique user identifier
+  </ResponseField>
+  
+  <ResponseField name="user.email" type="string">
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="user.rol" type="string">
+    User's role (alumna or admin)
+  </ResponseField>
+  
+  <ResponseField name="user.nombre_completo" type="string">
+    User's full name
+  </ResponseField>
+  
+  <ResponseField name="user.cambiar_password_obligatorio" type="boolean">
+    Whether the user must change their password on next login
+  </ResponseField>
+</ResponseField>
+
+#### Example Request
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.barotalvez.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "maria.gonzalez@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.barotalvez.com/api/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'maria.gonzalez@example.com',
+    password: 'securePassword123'
+  })
+});
+
+const data = await response.json();
+// Store the token for future requests
+localStorage.setItem('token', data.token);
+```
+
+</CodeGroup>
+
+#### Example Response
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJtYXJpYS5nb256YWxlekBleGFtcGxlLmNvbSIsInJvbCI6ImFsdW1uYSIsImlhdCI6MTYxNjIzOTAyMiwiZXhwIjoxNjE2MzI1NDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "user": {
+    "id": 1,
+    "email": "maria.gonzalez@example.com",
+    "rol": "alumna",
+    "nombre_completo": "María González",
+    "cambiar_password_obligatorio": false
+  }
+}
+```
+
+#### Error Responses
+
+| Status Code | Error Message | Description |
+|-------------|---------------|-------------|
+| 400 | Debe ser un email válido | Invalid email format (validation error) |
+| 400 | La contraseña es obligatoria | Password field is empty (validation error) |
+| 400 | User not found | No user exists with the provided email |
+| 401 | Invalid password | The password is incorrect |
+
+<Warning>
+  The login endpoint is protected by rate limiting to prevent brute force attacks. Excessive failed login attempts may temporarily block access.
+</Warning>
+
+---
+
+### Get Users
+
+Retrieve a list of all users with the 'alumna' role. This endpoint requires authentication.
+
+```http
+GET /api/auth/users
+```
+
+#### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token obtained from login or registration
+  
+  Format: `Bearer <token>`
+</ParamField>
+
+#### Response
+
+Returns an array of user objects, sorted alphabetically by name.
+
+<ResponseField name="users" type="array">
+  Array of user objects
+  
+  <ResponseField name="id" type="integer">
+    User's unique identifier
+  </ResponseField>
+  
+  <ResponseField name="nombre_completo" type="string">
+    User's full name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User's email address
+  </ResponseField>
+</ResponseField>
+
+#### Example Request
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.barotalvez.com/api/auth/users \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+```javascript JavaScript
+const token = localStorage.getItem('token');
+
+const response = await fetch('https://api.barotalvez.com/api/auth/users', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+  }
+});
+
+const users = await response.json();
+console.log(users);
+```
+
+</CodeGroup>
+
+#### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "nombre_completo": "Ana Martínez",
+    "email": "ana.martinez@example.com"
+  },
+  {
+    "id": 3,
+    "nombre_completo": "Carmen López",
+    "email": "carmen.lopez@example.com"
+  },
+  {
+    "id": 2,
+    "nombre_completo": "María González",
+    "email": "maria.gonzalez@example.com"
+  }
+]
+```
+
+#### Error Responses
+
+| Status Code | Error Message | Description |
+|-------------|---------------|-------------|
+| 401 | Access token required | No token provided in Authorization header |
+| 403 | Invalid token | Token is invalid or expired |
+
+## Token Expiration
+
+Tokens have different expiration times depending on how they were obtained:
+
+- **Registration tokens**: Expire after 1 hour
+- **Login tokens**: Expire after 24 hours
+
+When a token expires, you must authenticate again using the login endpoint to obtain a new token.
+
+## Security Best Practices
+
+<Warning>
+  - Never share your JWT tokens
+  - Store tokens securely (e.g., httpOnly cookies for web apps)
+  - Always use HTTPS in production
+  - Implement token refresh before expiration for better user experience
+  - Passwords are hashed using bcrypt with a salt factor of 10
+</Warning>

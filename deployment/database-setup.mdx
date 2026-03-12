@@ -1,0 +1,621 @@
+---
+title: 'Database Setup'
+description: 'Set up PostgreSQL and manage the Barro Tal Vez database with Prisma'
+---
+
+## Overview
+
+Barro Tal Vez uses **PostgreSQL 15** as its database, managed through **Prisma ORM**. The database schema includes tables for students (alumnas), pieces (piezas), costs, payments, notifications, shifts, and photo history.
+
+## PostgreSQL Setup
+
+The database runs in a Docker container configured through `docker-compose.yml`.
+
+### Configuration
+
+```yaml docker-compose.yml
+db:
+  image: postgres:15
+  container_name: barro-db
+  restart: always
+  environment:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: secreto_produccion_123
+    POSTGRES_DB: barrotalvez
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+  ports:
+    - "5433:5432"
+```
+
+### Key Settings
+
+- **Image**: PostgreSQL 15 (official Docker image)
+- **Port**: 5433 on host, 5432 in container
+- **Default Database**: `barrotalvez`
+- **Data Persistence**: Named volume `postgres_data`
+- **Auto-restart**: Enabled for reliability
+
+<Steps>
+  <Step title="Start the database">
+    Launch PostgreSQL in Docker:
+
+    ```bash
+    docker compose up -d db
+    ```
+  </Step>
+
+  <Step title="Verify database is running">
+    Check the database status:
+
+    ```bash
+    docker compose ps db
+    ```
+
+    Test connectivity:
+
+    ```bash
+    docker compose exec db pg_isready -U postgres
+    ```
+
+    Expected output: `accepting connections`
+  </Step>
+
+  <Step title="Connect to PostgreSQL (optional)">
+    Access the PostgreSQL CLI:
+
+    ```bash
+    docker compose exec db psql -U postgres -d barrotalvez
+    ```
+
+    Run a test query:
+
+    ```sql
+    \dt  -- List all tables
+    \q   -- Quit
+    ```
+  </Step>
+</Steps>
+
+## Prisma Schema Overview
+
+The application uses Prisma as the database ORM. The schema is defined in `backend/prisma/schema.prisma`.
+
+### Database Models
+
+#### Alumna (Students)
+
+Stores student information and authentication credentials.
+
+```prisma
+model Alumna {
+  id                           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at                   DateTime @default(now()) @db.Timestamptz(6)
+  nombre_completo              String
+  email                        String   @unique
+  password_hash                String?
+  rol                          String?  @default("alumna")
+  telefono                     String?
+  foto_url                     String?
+  turno_id                     String?  @db.Uuid
+  cambiar_password_obligatorio Boolean  @default(true)
+  cuota_al_dia                 Boolean  @default(false)
+  
+  // Relations
+  turno                        Turno?   @relation(fields: [turno_id], references: [id])
+  costos                       costos[]
+  pagos                        pagos[]
+  piezas                       Pieza[]
+  notificaciones               Notificacion[]
+}
+```
+
+**Key Fields**:
+- `id` - UUID primary key (auto-generated)
+- `email` - Unique identifier for login
+- `password_hash` - Bcrypt hashed password
+- `cambiar_password_obligatorio` - Forces password change on next login
+- `cuota_al_dia` - Payment status flag
+
+#### Turno (Shifts)
+
+Defines class schedules for students.
+
+```prisma
+model Turno {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  dia        String   // e.g., "Lunes", "Martes"
+  horario    String   // e.g., "14:00 - 17:00"
+  alumnas    Alumna[]
+}
+```
+
+#### Pieza (Pieces)
+
+Tracks ceramic pieces created by students.
+
+```prisma
+model Pieza {
+  id                  BigInt    @id @default(autoincrement())
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  nombre_pieza        String
+  foto_url            String?
+  estado              String    @default("creacion")
+  fecha_entrega       DateTime? @db.Timestamp(6)
+  alumna_id           String?   @db.Uuid
+  
+  // Relations
+  alumna              Alumna?   @relation(fields: [alumna_id], references: [id])
+  costos              costos[]
+  historial_fotos     HistorialFoto[]
+}
+```
+
+**Estados** (Piece States):
+- `creacion` - Being created
+- `secado` - Drying
+- `bizcochado` - Bisque fired
+- `esmaltado` - Glazed
+- `terminado` - Finished
+- `entregado` - Delivered
+
+#### HistorialFoto (Photo History)
+
+Tracks photos of pieces at different stages.
+
+```prisma
+model HistorialFoto {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  pieza_id   BigInt
+  estado     String
+  foto_url   String
+  pieza      Pieza    @relation(fields: [pieza_id], references: [id], onDelete: Cascade)
+}
+```
+
+#### costos (Costs)
+
+Tracks material and firing costs.
+
+```prisma
+model costos {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  alumna_id  String   @db.Uuid
+  pieza_id   BigInt?
+  monto      Decimal  @default(0) @db.Decimal
+  concepto   String?
+  
+  // Relations
+  alumnas    Alumna   @relation(fields: [alumna_id], references: [id], onDelete: Cascade)
+  piezas     Pieza?   @relation(fields: [pieza_id], references: [id])
+}
+```
+
+#### pagos (Payments)
+
+Records student payments.
+
+```prisma
+model pagos {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  monto      Decimal  @db.Decimal
+  concepto   String?
+  alumna_id  String   @db.Uuid
+  alumnas    Alumna   @relation(fields: [alumna_id], references: [id], onDelete: Cascade)
+}
+```
+
+#### Notificacion (Notifications)
+
+User notifications system.
+
+```prisma
+model Notificacion {
+  id         BigInt   @id @default(autoincrement())
+  mensaje    String
+  leida      Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  alumna_id  String   @db.Uuid
+  alumna     Alumna   @relation(fields: [alumna_id], references: [id], onDelete: Cascade)
+}
+```
+
+## Database Migrations
+
+Prisma Migrate manages database schema changes through migration files.
+
+### Initial Setup
+
+<Steps>
+  <Step title="Generate Prisma Client">
+    Generate the Prisma client from the schema:
+
+    ```bash
+    docker compose exec backend npx prisma generate
+    ```
+
+    This creates the `@prisma/client` package used by the application.
+  </Step>
+
+  <Step title="Run migrations">
+    Apply all pending migrations:
+
+    ```bash
+    docker compose exec backend npx prisma migrate deploy
+    ```
+
+    This creates all tables, indexes, and constraints defined in the schema.
+  </Step>
+
+  <Step title="Verify schema">
+    Check the current database schema:
+
+    ```bash
+    docker compose exec backend npx prisma db pull
+    ```
+
+    View migration status:
+
+    ```bash
+    docker compose exec backend npx prisma migrate status
+    ```
+  </Step>
+</Steps>
+
+### Creating New Migrations
+
+When you modify the Prisma schema:
+
+<Steps>
+  <Step title="Edit schema.prisma">
+    Make changes to `backend/prisma/schema.prisma`.
+  </Step>
+
+  <Step title="Create migration">
+    Generate a new migration file:
+
+    ```bash
+    docker compose exec backend npx prisma migrate dev --name describe_your_changes
+    ```
+
+    Example:
+    ```bash
+    docker compose exec backend npx prisma migrate dev --name add_student_status
+    ```
+  </Step>
+
+  <Step title="Review migration">
+    Check the generated SQL in `backend/prisma/migrations/`.
+  </Step>
+
+  <Step title="Apply to production">
+    Deploy migrations to production:
+
+    ```bash
+    docker compose exec backend npx prisma migrate deploy
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Always review generated migration SQL before applying to production. Some schema changes may require manual intervention or data migration.
+</Warning>
+
+## Database Seeding
+
+The seed script (`backend/prisma/seed.js`) creates initial test data.
+
+### Seed Script Contents
+
+```javascript prisma/seed.js
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+const prisma = new PrismaClient();
+
+async function main() {
+    const email = 'test@barro.com';
+    const password = '123';
+    const nombre_completo = 'Usuario Test';
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const user = await prisma.alumna.upsert({
+        where: { email },
+        update: {},
+        create: {
+            email,
+            nombre_completo,
+            password_hash,
+            rol: 'alumna',
+        },
+    });
+
+    console.log({ user });
+}
+
+main()
+    .then(async () => {
+        await prisma.$disconnect();
+    })
+    .catch(async (e) => {
+        console.error(e);
+        await prisma.$disconnect();
+        process.exit(1);
+    });
+```
+
+### Running the Seed
+
+<Steps>
+  <Step title="Configure package.json">
+    Ensure `backend/package.json` has the seed script:
+
+    ```json
+    {
+      "prisma": {
+        "seed": "node prisma/seed.js"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Run seed command">
+    ```bash
+    docker compose exec backend npx prisma db seed
+    ```
+  </Step>
+
+  <Step title="Verify test user">
+    Log in with the test account:
+    - Email: `test@barro.com`
+    - Password: `123`
+  </Step>
+</Steps>
+
+<Note>
+  The seed script uses `upsert`, so running it multiple times won't create duplicate users.
+</Note>
+
+## Database Backup and Restore
+
+### Backup Database
+
+<CodeGroup>
+```bash Full backup
+docker compose exec -T db pg_dump -U postgres barrotalvez > backup.sql
+```
+
+```bash Compressed backup
+docker compose exec -T db pg_dump -U postgres barrotalvez | gzip > backup.sql.gz
+```
+
+```bash Schema only
+docker compose exec -T db pg_dump -U postgres --schema-only barrotalvez > schema.sql
+```
+
+```bash Data only
+docker compose exec -T db pg_dump -U postgres --data-only barrotalvez > data.sql
+```
+</CodeGroup>
+
+### Restore Database
+
+<Steps>
+  <Step title="Stop the backend">
+    Prevent connections during restore:
+
+    ```bash
+    docker compose stop backend
+    ```
+  </Step>
+
+  <Step title="Drop existing database">
+    ```bash
+    docker compose exec db dropdb -U postgres barrotalvez
+    ```
+  </Step>
+
+  <Step title="Create new database">
+    ```bash
+    docker compose exec db createdb -U postgres barrotalvez
+    ```
+  </Step>
+
+  <Step title="Restore from backup">
+    ```bash
+    docker compose exec -T db psql -U postgres barrotalvez < backup.sql
+    ```
+
+    Or for compressed backups:
+    ```bash
+    gunzip < backup.sql.gz | docker compose exec -T db psql -U postgres barrotalvez
+    ```
+  </Step>
+
+  <Step title="Restart backend">
+    ```bash
+    docker compose start backend
+    ```
+  </Step>
+</Steps>
+
+### Automated Backups
+
+Create a cron job for daily backups:
+
+```bash
+#!/bin/bash
+# backup-db.sh
+
+BACKUP_DIR="/path/to/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+FILENAME="barro_backup_${DATE}.sql.gz"
+
+cd /path/to/barro-tal-vez
+docker compose exec -T db pg_dump -U postgres barrotalvez | gzip > "${BACKUP_DIR}/${FILENAME}"
+
+# Keep only last 7 days of backups
+find "${BACKUP_DIR}" -name "barro_backup_*.sql.gz" -mtime +7 -delete
+```
+
+Add to crontab:
+```bash
+# Daily backup at 2 AM
+0 2 * * * /path/to/backup-db.sh
+```
+
+## Database Maintenance
+
+### View Database Size
+
+```bash
+docker compose exec db psql -U postgres -d barrotalvez -c "\l+"
+```
+
+### View Table Sizes
+
+```bash
+docker compose exec db psql -U postgres -d barrotalvez -c "
+SELECT 
+  schemaname,
+  tablename,
+  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+FROM pg_tables 
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+"
+```
+
+### Vacuum Database
+
+Reclaim storage and update statistics:
+
+```bash
+docker compose exec db psql -U postgres -d barrotalvez -c "VACUUM ANALYZE;"
+```
+
+### Reset Database
+
+<Warning>
+  This will **delete all data** in the database. Only use for development or when you have a backup.
+</Warning>
+
+```bash
+# Reset and re-run all migrations
+docker compose exec backend npx prisma migrate reset
+
+# This will:
+# 1. Drop the database
+# 2. Create a new database
+# 3. Apply all migrations
+# 4. Run the seed script
+```
+
+## Troubleshooting
+
+### "Error: P1001: Can't reach database server"
+
+**Cause**: Backend can't connect to PostgreSQL.
+
+**Solutions**:
+1. Verify database is running:
+   ```bash
+   docker compose ps db
+   ```
+
+2. Check database logs:
+   ```bash
+   docker compose logs db
+   ```
+
+3. Test connection from backend:
+   ```bash
+   docker compose exec backend npx prisma db pull
+   ```
+
+### "Migration failed" Errors
+
+**Cause**: Schema conflicts or database state issues.
+
+**Solutions**:
+
+1. Check migration status:
+   ```bash
+   docker compose exec backend npx prisma migrate status
+   ```
+
+2. Mark failed migration as rolled back:
+   ```bash
+   docker compose exec backend npx prisma migrate resolve --rolled-back MIGRATION_NAME
+   ```
+
+3. For development, reset and start fresh:
+   ```bash
+   docker compose exec backend npx prisma migrate reset
+   ```
+
+### "Unique constraint violation"
+
+**Cause**: Attempting to insert duplicate data.
+
+**Solution**: Check for existing records:
+```bash
+docker compose exec db psql -U postgres -d barrotalvez -c "
+SELECT email, nombre_completo FROM alumnas WHERE email = 'test@barro.com';
+"
+```
+
+### Database Performance Issues
+
+**Solutions**:
+
+1. Add indexes for frequently queried fields
+2. Run `VACUUM ANALYZE` to update statistics
+3. Check slow query log
+4. Increase PostgreSQL memory settings if needed
+
+### Volume Permission Issues
+
+**Cause**: PostgreSQL can't write to volume.
+
+**Solution**:
+```bash
+# Check volume ownership
+docker compose exec db ls -la /var/lib/postgresql/data
+
+# If needed, recreate volume
+docker compose down -v
+docker compose up -d
+```
+
+## Prisma Studio
+
+Prisma Studio provides a GUI for viewing and editing database data.
+
+### Launch Prisma Studio
+
+```bash
+docker compose exec backend npx prisma studio
+```
+
+Access at: http://localhost:5555
+
+<Note>
+  Prisma Studio is great for development but should **not** be exposed in production environments.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Setup" icon="docker" href="/deployment/docker-setup">
+    Complete Docker Compose deployment guide
+  </Card>
+  <Card title="Environment Config" icon="gear" href="/deployment/environment-config">
+    Configure environment variables
+  </Card>
+</CardGroup>

@@ -1,0 +1,299 @@
+---
+title: 'Piece Tracking'
+description: 'Track pottery pieces through their complete lifecycle from creation to delivery'
+---
+
+## Overview
+
+The piece tracking system follows each pottery creation through its entire journey in the workshop. Students register their pieces with photos, advance them through production states, and receive notifications when they're ready for pickup.
+
+## Piece Lifecycle States
+
+Each piece moves through a series of states representing the pottery production process:
+
+| State | Label | Icon | Student Actions | Admin Actions |
+|-------|-------|------|-----------------|---------------|
+| `creacion` / `modelado` | Modelado | 🏺 | Can advance to "secado" | Can change state, edit details |
+| `secado` | Secando | 💨 | Can advance to "listo_horno" | Can change state |
+| `listo_horno` | Listo p/ Horno | ⏲️ | View only | Can advance to "horneando" |
+| `horneando` | Horneando | 🔥 | View only | Can advance to "bizcocho" |
+| `bizcocho` | Bizcocho | 🍪 | Can advance to "esmaltado" | Can change state |
+| `esmaltado` | Esmaltado | 🎨 | View only | Can advance to "horno_2" |
+| `horno_2` | 2do Horneado | 🔥🔥 | View only | Can advance to "lista_retiro" |
+| `lista_retiro` | Lista Retirar | 🎁 | View only | Can advance to "entregada" |
+| `entregada` | Entregada | 🏠 | View in history | Final state |
+| `rota` | Rota | 💔 | View in history | Can mark as broken at any point |
+
+<Note>
+  The workflow is designed so students can advance pieces during stages they control (modeling, drying, glazing), while workshop staff manage kiln operations.
+</Note>
+
+## Student Workflows
+
+### Registering a New Piece
+
+Students create new pieces through the "Nueva Pieza" form:
+
+<Steps>
+  <Step title="Enter piece name">
+    Provide a descriptive name (e.g., "Taza de Gato")
+  </Step>
+  
+  <Step title="Upload photo (required)">
+    Take a photo of the piece in its initial state. Photo upload is mandatory.
+  </Step>
+  
+  <Step title="Submit registration">
+    The piece is created in "modelado" state and appears in the student's active pieces list
+  </Step>
+</Steps>
+
+The system uses image compression to optimize photo uploads (max 0.5MB, 1024px max dimension).
+
+### Advancing Piece State
+
+Students can progress their pieces through specific stages:
+
+<CardGroup cols={2}>
+  <Card title="Modelado → Secado" icon="arrow-right">
+    Click "Pasar a Secado" when modeling is complete
+  </Card>
+  
+  <Card title="Secado → Listo p/ Horno" icon="arrow-right">
+    Click "¡Lista para Horno!" when piece is fully dried
+  </Card>
+  
+  <Card title="Bizcocho → Esmaltado" icon="arrow-right">
+    Click "¡Ya Esmalté!" after applying glaze to bisque-fired piece
+  </Card>
+</CardGroup>
+
+During admin-controlled stages (kiln operations), students see a message: "En proceso del taller..."
+
+### Updating Piece Photos
+
+While a piece is in early stages (`creacion` or `modelado`), students can update the main photo:
+
+- Click the **"📷 Editar foto"** button overlaid on the piece image
+- Select a new photo file
+- Photo is compressed and uploaded immediately
+- The piece card updates to show the new image
+
+### Photo History Tracking
+
+Students can document their piece's progress with additional photos:
+
+1. Click **"📸 Subir foto de avance"** on any active piece
+2. Select a photo file from their device
+3. The photo is added to the `historial_fotos` collection with the current state
+4. Photos appear in a horizontal scrollable gallery below the main image
+
+Each history photo shows which state the piece was in when captured (visible on hover).
+
+<Info>
+  The photo history feature (via `HistorialFoto` model) creates a visual timeline of how each piece evolved through the production process.
+</Info>
+
+### Viewing Active Pieces
+
+The **"Mis Piezas"** view shows all pieces not yet delivered or broken:
+
+- Pieces are displayed as cards in a vertical list
+- Each card shows:
+  - Main photo (full-width at top)
+  - Photo history gallery (if available)
+  - Piece name and current state badge
+  - Registration date
+  - Action button (if student can advance state)
+
+### Viewing Completed Pieces
+
+The **"Mis Horneados"** view shows historical pieces:
+
+- Includes pieces with state `entregada` (delivered) or `rota` (broken)
+- Display-only cards without action buttons
+- Preserves full photo history for each piece
+
+## Admin Workflows
+
+### Managing All Pieces
+
+Admins access a comprehensive piece registry via **VistaPiezasAdmin**:
+
+- View all pieces from all students in a single list
+- Filter by student using the dropdown selector
+- See piece photo, name, owner, and registration date
+- Access photo history gallery for each piece
+
+### Changing Piece State
+
+Admins have unrestricted state control:
+
+- **Dropdown selector** on each piece card
+- Can change to any state instantly (including "rota" for breakage)
+- State changes reflect immediately in student view
+- Used to progress pieces through kiln firing stages
+
+### Editing Piece Details
+
+Admins can modify piece information:
+
+<Steps>
+  <Step title="Click edit icon">
+    Click ✏️ on the piece card to enter edit mode
+  </Step>
+  
+  <Step title="Modify fields">
+    - Change piece name
+    - Reassign to different student
+    - Upload new photo (optional)
+  </Step>
+  
+  <Step title="Save changes">
+    Click "Guardar Cambios" to update the piece
+  </Step>
+</Steps>
+
+The edit form appears inline at the top of the page with a blue border.
+
+### Deleting Pieces
+
+Admins can remove pieces from the system:
+
+- Click the delete icon (🗑️) on any piece
+- Confirm deletion in the popup
+- Piece and all associated history photos are removed (cascade delete)
+
+<Warning>
+  Deleting a piece also removes all `HistorialFoto` records and any associated `costos` entries due to database cascade relationships.
+</Warning>
+
+## Database Schema
+
+The `Pieza` model (schema.prisma lines 58-71) includes:
+
+```prisma
+model Pieza {
+  id            BigInt    @id @default(autoincrement())
+  created_at    DateTime  @default(now())
+  nombre_pieza  String
+  foto_url      String?
+  estado        String    @default("creacion")
+  fecha_entrega DateTime?
+  alumna_id     String?   @db.Uuid
+  
+  costos          costos[]
+  alumna          Alumna?
+  historial_fotos HistorialFoto[]
+}
+```
+
+### Photo History Model
+
+The `HistorialFoto` model (lines 73-82) tracks state-specific photos:
+
+```prisma
+model HistorialFoto {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now())
+  pieza_id   BigInt
+  estado     String
+  foto_url   String
+  pieza      Pieza    @relation(..., onDelete: Cascade)
+}
+```
+
+Each history entry captures:
+- Which piece it belongs to (`pieza_id`)
+- What state the piece was in (`estado`)
+- The photo URL (`foto_url`)
+- When it was uploaded (`created_at`)
+
+## File Upload System
+
+Both main piece photos and history photos use multipart form data:
+
+### Main Photo Upload (Create)
+
+```javascript
+const formData = new FormData()
+formData.append('nombre_pieza', nombrePieza)
+formData.append('estado', 'modelado')
+formData.append('foto', archivoFoto) // Compressed image file
+
+await api.post('/piezas', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+})
+```
+
+### History Photo Upload
+
+```javascript
+const formData = new FormData()
+formData.append('foto', archivoHistorial)
+formData.append('estado', pieza.estado) // Current state of piece
+
+await api.post(`/piezas/${piezaId}/historial-fotos`, formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+})
+```
+
+## Pagination
+
+Piece lists use server-side pagination for performance:
+
+- **Default page size**: 15 pieces
+- **Query parameters**: `?page=1&limit=15`
+- **"Cargar más" button**: Loads next page when clicked
+- Pagination metadata includes total pages and current page number
+
+## State Advancement Rules
+
+The `REGLAS_AVANCE` configuration (VistaMisPiezas.jsx lines 18-30) enforces workflow rules:
+
+```javascript
+{
+  'creacion': { 
+    siguiente: 'secado', 
+    textoBoton: 'Pasar a Secado', 
+    permisoAlumna: true 
+  },
+  'secado': { 
+    siguiente: 'listo_horno', 
+    textoBoton: '¡Lista para Horno!', 
+    permisoAlumna: true 
+  },
+  // ... more states
+}
+```
+
+Each rule defines:
+- `siguiente`: Next valid state
+- `textoBoton`: Button label for student UI
+- `permisoAlumna`: Whether students can perform this transition
+
+## Visual Design
+
+Piece cards use a warm, earthy color palette:
+
+- **Background**: `#EAE2D6` (warm beige)
+- **Borders**: `#84572F` (terracotta brown)
+- **Accent**: `#92ADA4` (sage green for action buttons)
+- **Typography**: Fredoka One for headings, Roboto for body text
+
+## Technical Implementation
+
+Key files for piece tracking:
+
+- **Schema**: `~/workspace/source/backend/prisma/schema.prisma` (lines 58-82)
+- **Controller**: `~/workspace/source/backend/src/controllers/pieza.controller.js`
+- **Student UI**: `~/workspace/source/frontend/src/componentes/vistasAlumna/VistaMisPiezas.jsx`
+- **Admin UI**: `~/workspace/source/frontend/src/componentes/vistasAdmin/VistaPiezasAdmin.jsx`
+
+## Integration Points
+
+Pieces connect to:
+
+- **Students (Alumna)**: Each piece belongs to one student
+- **Costs (costos)**: Materials and firing fees can be linked to specific pieces
+- **Photo History (HistorialFoto)**: One-to-many relationship for progress photos

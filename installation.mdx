@@ -1,0 +1,465 @@
+---
+title: "Installation"
+description: "Detailed installation guide for Barro Tal Vez"
+---
+
+## Overview
+
+This guide covers installing Barro Tal Vez for local development. You can run the application with Docker Compose (recommended) or set up each component manually.
+
+## Prerequisites
+
+### Required Software
+
+<CardGroup cols={2}>
+  <Card title="Docker Desktop" icon="docker">
+    **Version**: 20.10 or higher
+    
+    [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
+  </Card>
+  
+  <Card title="Node.js" icon="node">
+    **Version**: 20.x LTS
+    
+    [Download Node.js](https://nodejs.org)
+  </Card>
+  
+  <Card title="PostgreSQL" icon="database">
+    **Version**: 15 or higher
+    
+    Only needed for manual installation
+  </Card>
+  
+  <Card title="Git" icon="git-alt">
+    **Version**: 2.x or higher
+    
+    [Download Git](https://git-scm.com)
+  </Card>
+</CardGroup>
+
+### System Requirements
+
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 2GB free space
+- **OS**: Linux, macOS, or Windows with WSL2
+
+## Installation with Docker (Recommended)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/massimoquirolo/barro-tal-vez-v2.git
+cd barro-tal-vez-v2
+```
+
+### Step 2: Review Docker Configuration
+
+The `docker-compose.yml` file defines three services:
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  # 1. Base de Datos
+  db:
+    image: postgres:15
+    container_name: barro-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secreto_produccion_123
+      POSTGRES_DB: barrotalvez
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  # 2. API Backend
+  backend:
+    build: ./backend
+    container_name: barro-api
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:secreto_produccion_123@db:5432/barrotalvez?schema=public
+      JWT_SECRET: mi_super_secreto_jwt
+      PORT: 3000
+    depends_on:
+      - db
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  # 3. Frontend React
+  frontend:
+    build: ./frontend
+    container_name: barro-web
+    restart: always
+    ports:
+      - "8082:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+```
+
+<Note>
+  The configuration uses port 5433 for PostgreSQL to avoid conflicts with local installations.
+</Note>
+
+### Step 3: Build and Start Services
+
+```bash
+docker-compose up --build
+```
+
+The build process:
+1. Pulls PostgreSQL 15 Alpine image
+2. Builds backend using Node 20 Alpine
+3. Installs dependencies and generates Prisma client
+4. Builds frontend with Vite
+5. Creates optimized production bundle served by Nginx
+
+### Step 4: Initialize Database
+
+In a new terminal, run Prisma migrations:
+
+```bash
+# Access backend container
+docker exec -it barro-api sh
+
+# Run migrations
+npx prisma migrate deploy
+
+# Generate Prisma client
+npx prisma generate
+
+# Seed test data
+node prisma/seed.js
+```
+
+The seed script creates a test user:
+- Email: `test@barro.com`
+- Password: `123`
+- Role: `alumna`
+
+### Step 5: Verify Installation
+
+```bash
+# Check all containers are running
+docker ps
+
+# Test backend API
+curl http://localhost:3001
+
+# Open frontend in browser
+open http://localhost:8082
+```
+
+## Manual Installation
+
+For development without Docker:
+
+### Backend Setup
+
+<Steps>
+  <Step title="Install backend dependencies">
+    ```bash
+    cd backend
+    npm install
+    ```
+    
+    Key dependencies from `package.json`:
+    ```json
+    {
+      "dependencies": {
+        "@prisma/client": "^6.3.0",
+        "express": "^4.21.2",
+        "bcrypt": "^5.1.1",
+        "jsonwebtoken": "^9.0.2",
+        "cors": "^2.8.5",
+        "multer": "^1.4.5-lts.1",
+        "zod": "^4.3.6",
+        "dotenv": "^16.4.7"
+      },
+      "devDependencies": {
+        "prisma": "^6.3.0"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the `backend` directory:
+    
+    ```bash .env
+    DATABASE_URL="postgresql://postgres:your_password@localhost:5432/barrotalvez?schema=public"
+    JWT_SECRET="your_jwt_secret_key_here"
+    PORT=3000
+    ```
+    
+    <Warning>
+      Never commit `.env` files to version control. Use strong, unique values in production.
+    </Warning>
+  </Step>
+
+  <Step title="Set up PostgreSQL database">
+    ```bash
+    # Create database
+    createdb barrotalvez
+    
+    # Or using psql
+    psql -U postgres -c "CREATE DATABASE barrotalvez;"
+    ```
+  </Step>
+
+  <Step title="Run Prisma migrations">
+    ```bash
+    npx prisma migrate dev
+    npx prisma generate
+    node prisma/seed.js
+    ```
+  </Step>
+
+  <Step title="Start the backend server">
+    <CodeGroup>
+      ```bash Production
+      npm start
+      ```
+      
+      ```bash Development
+      npm run dev
+      ```
+    </CodeGroup>
+    
+    Server runs on [http://localhost:3000](http://localhost:3000)
+  </Step>
+</Steps>
+
+### Frontend Setup
+
+<Steps>
+  <Step title="Install frontend dependencies">
+    ```bash
+    cd frontend
+    npm install
+    ```
+    
+    Key dependencies:
+    ```json
+    {
+      "dependencies": {
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "react-router-dom": "^7.13.0",
+        "axios": "^1.13.4",
+        "react-hot-toast": "^2.6.0",
+        "browser-image-compression": "^2.0.2"
+      },
+      "devDependencies": {
+        "vite": "^7.2.2",
+        "@vitejs/plugin-react": "^5.1.0",
+        "tailwindcss": "^3.4.18",
+        "autoprefixer": "^10.4.22",
+        "postcss": "^8.5.6"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Configure API endpoint">
+    Create `.env` file in the `frontend` directory:
+    
+    ```bash .env
+    VITE_API_URL=http://localhost:3000/api
+    ```
+    
+    The frontend uses this in `src/services/api.js`:
+    ```javascript
+    const api = axios.create({
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+      timeout: 10000,
+    });
+    ```
+  </Step>
+
+  <Step title="Start the development server">
+    <CodeGroup>
+      ```bash Development
+      npm run dev
+      ```
+      
+      ```bash Production Build
+      npm run build
+      npm run preview
+      ```
+    </CodeGroup>
+    
+    Development server runs on [http://localhost:5173](http://localhost:5173)
+  </Step>
+</Steps>
+
+## Database Schema
+
+The Prisma schema defines the following models:
+
+<Accordion title="View Prisma Schema">
+  ```prisma schema.prisma
+  model Alumna {
+    id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    created_at      DateTime @default(now()) @db.Timestamptz(6)
+    nombre_completo String
+    email           String   @unique
+    password_hash   String?
+    rol             String?  @default("alumna")
+    telefono        String?
+    foto_url        String?
+    turno_id        String?  @db.Uuid
+    turno           Turno?   @relation(fields: [turno_id], references: [id])
+    cambiar_password_obligatorio Boolean @default(true)
+    cuota_al_dia                 Boolean @default(false)
+    
+    costos          costos[]
+    pagos           pagos[]
+    piezas          Pieza[]
+    notificaciones  Notificacion[]
+    
+    @@map("alumnas")
+  }
+
+  model Pieza {
+    id            BigInt    @id @default(autoincrement())
+    created_at    DateTime  @default(now()) @db.Timestamptz(6)
+    nombre_pieza  String
+    foto_url      String?
+    estado        String    @default("creacion")
+    fecha_entrega DateTime? @db.Timestamp(6)
+    alumna_id     String?   @db.Uuid
+    
+    costos          costos[]
+    alumna          Alumna?   @relation(fields: [alumna_id], references: [id])
+    historial_fotos HistorialFoto[]
+    
+    @@map("piezas")
+  }
+  ```
+</Accordion>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port conflicts">
+    If ports 8082, 3001, or 5433 are already in use, modify `docker-compose.yml`:
+    
+    ```yaml
+    services:
+      frontend:
+        ports:
+          - "8083:80"  # Change first number
+    ```
+  </Accordion>
+
+  <Accordion title="Database connection errors">
+    Ensure PostgreSQL is running and credentials match:
+    
+    ```bash
+    # Check database container logs
+    docker logs barro-db
+    
+    # Verify connection
+    docker exec -it barro-db psql -U postgres -d barrotalvez
+    ```
+  </Accordion>
+
+  <Accordion title="Prisma Client errors">
+    Regenerate the Prisma client:
+    
+    ```bash
+    cd backend
+    npx prisma generate
+    ```
+  </Accordion>
+
+  <Accordion title="File upload permissions">
+    The backend creates an `uploads` directory. If you see permission errors:
+    
+    ```bash
+    # In backend directory
+    mkdir -p uploads
+    chmod 755 uploads
+    ```
+    
+    The Dockerfile handles this automatically:
+    ```dockerfile
+    RUN mkdir -p uploads && chown -R node:node /app
+    USER node
+    ```
+  </Accordion>
+
+  <Accordion title="Build failures">
+    Clear Docker cache and rebuild:
+    
+    ```bash
+    docker-compose down -v
+    docker system prune -a
+    docker-compose up --build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Creating an Admin User
+
+To create an admin account with elevated privileges:
+
+```bash
+# Access the backend container
+docker exec -it barro-api sh
+
+# Edit fix-admin.js with admin credentials
+node fix-admin.js
+```
+
+The script from `backend/fix-admin.js`:
+```javascript
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+const prisma = new PrismaClient();
+
+async function fixAdmin() {
+  const emailAdmin = 'admin@barro.com'; 
+  const passwordNueva = '1234';
+
+  const password_hash = await bcrypt.hash(passwordNueva, 10);
+  
+  await prisma.alumna.update({
+    where: { email: emailAdmin },
+    data: { password_hash, rol: 'admin' }
+  });
+}
+```
+
+<Warning>
+  Change the default password immediately after first login.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Quick setup with Docker Compose
+  </Card>
+  
+  <Card title="Environment Config" icon="gear" href="/deployment/environment-config">
+    Configure environment variables for production
+  </Card>
+  
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Advanced Prisma and PostgreSQL configuration
+  </Card>
+  
+  <Card title="Admin Guide" icon="user-shield" href="/guides/admin-guide">
+    Learn how to manage your pottery workshop
+  </Card>
+</CardGroup>
